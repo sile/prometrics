@@ -1,3 +1,4 @@
+extern crate atomic_immut;
 #[macro_use]
 extern crate trackable;
 

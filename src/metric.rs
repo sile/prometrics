@@ -1,6 +1,8 @@
 // TODO: primitive(?)
 use std::sync::{Arc, Weak};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicUsize, AtomicIsize, Ordering};
+use std::time::{Duration, SystemTime};
+use atomic_immut::AtomicImmut;
 
 use {Result, ErrorKind};
 
@@ -88,6 +90,66 @@ fn validate_label_name(name: &str) -> Result<()> {
     Ok(())
 }
 
+pub enum Metric2 {
+    Counter(CounterMetric),
+    Gauge(GaugeMetric),
+    Summary(SummaryMetric),
+    Untyped(UntypedMetric),
+    Histogram(HistogramMetric),
+}
+
+struct DynamicLabels(AtomicImmut<Vec<Label>>);
+
+struct Common {
+    name: String,
+    help: String,
+    static_labels: Labels,
+    dynamic_labels: Arc<DynamicLabels>,
+    timestamp: Arc<Timestamp>,
+}
+
+pub struct CounterMetric {
+    common: Common,
+    value: Arc<AtomicF64>,
+}
+
+pub struct GaugeMetric {
+    common: Common,
+    value: Arc<AtomicF64>,
+}
+
+pub struct SummaryMetric {
+    common: Common,
+    sample_count: Arc<AtomicUsize>, // TODO: u64
+    sample_sum: Arc<AtomicF64>,
+
+    window: Duration,
+    samples: Arc<Vec<Sample>>, // TODO: Receiver
+    quantiles: Vec<f64>,
+}
+
+pub struct Sample {
+    time: SystemTime,
+    value: f64,
+}
+
+pub struct UntypedMetric {
+    common: Common,
+    value: Arc<AtomicF64>,
+}
+
+pub struct HistogramMetric {
+    common: Common,
+    sample_count: Arc<AtomicUsize>, // TODO: u64
+    sample_sum: Arc<AtomicF64>,
+    buckets: Arc<Vec<Bucket>>,
+}
+
+pub struct Bucket {
+    count: u64, // TODO: convert to cumulative in encoding phase
+    upper_bound: f64, // inclusive
+}
+
 // TODO: enum
 #[derive(Debug, Clone)]
 pub struct Metric {
@@ -144,5 +206,14 @@ impl AtomicF64 {
     }
     pub fn get(&self) -> f64 {
         self.0.load(Ordering::SeqCst) as f64
+    }
+}
+
+// TODO: cfg
+#[derive(Debug)]
+pub struct Timestamp(AtomicIsize);
+impl Timestamp {
+    pub fn none() -> Self {
+        Timestamp(AtomicIsize::new(::std::isize::MIN))
     }
 }

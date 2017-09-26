@@ -51,7 +51,7 @@ impl MetricsGatherer {
 
 pub struct Metrics<'a> {
     collectors: &'a mut Vec<BoxCollector>,
-    metrics: &'a [Metric], // TODO: merge the values of the same labels and name
+    metrics: &'a [Metric],
     collector_index: usize,
     metric_index: usize,
 }
