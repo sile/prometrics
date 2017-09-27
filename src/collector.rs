@@ -1,7 +1,5 @@
-use metric::Metric;
+use Metric;
 
 pub trait Collector {
-    fn collect(&mut self) -> Option<&[Metric]>;
+    fn collect(&mut self) -> Option<Box<Iterator<Item = Metric>>>;
 }
-
-pub type BoxCollector = Box<Collector + Send + 'static>;

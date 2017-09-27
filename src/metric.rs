@@ -1,12 +1,59 @@
-use metrics::{Counter, Gauge, Summary, Untyped, Histogram};
+use std::iter;
+
+use {Result, ErrorKind};
+use metrics::Counter;
 
 #[derive(Debug, Clone)]
 pub enum Metric {
     Counter(Counter),
-    Gauge(Gauge),
-    Summary(Summary),
-    Untyped(Untyped),
-    Histogram(Histogram),
+    // Gauge(Gauge),
+    // Summary(Summary),
+    // Untyped(Untyped),
+    // Histogram(Histogram),
+}
+
+#[derive(Debug)]
+pub struct MetricName(String);
+impl MetricName {
+    pub fn new(
+        namespace: Option<&str>,
+        subsystem: Option<&str>,
+        name: &str,
+        suffix: Option<&str>,
+    ) -> Result<Self> {
+        let fullname = namespace
+            .into_iter()
+            .chain(subsystem.into_iter())
+            .chain(iter::once(name))
+            .chain(suffix.into_iter())
+            .collect::<Vec<_>>()
+            .join("_");
+        track!(validate_metric_name(&fullname), "name={:?}", fullname)?;
+        Ok(MetricName(fullname))
+    }
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+// TODO: escape newline and '\\'
+#[derive(Debug)]
+pub struct Help(pub String);
+
+fn validate_metric_name(name: &str) -> Result<()> {
+    // REGEX: [a-zA-Z_:][a-zA-Z0-9_:]*
+    track_assert!(!name.is_empty(), ErrorKind::InvalidInput);
+    match name.as_bytes()[0] as char {
+        'a'...'z' | 'A'...'Z' | '_' | ':' => {}
+        _ => track_panic!(ErrorKind::InvalidInput),
+    }
+    for c in name.chars().skip(1) {
+        match c {
+            'a'...'z' | 'A'...'Z' | '0'...'9' | '_' | ':' => {}
+            _ => track_panic!(ErrorKind::InvalidInput),
+        }
+    }
+    Ok(())
 }
 
 // // TODO: primitive(?)
