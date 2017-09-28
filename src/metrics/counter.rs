@@ -39,9 +39,6 @@ impl Counter {
         assert!(count >= 0.0);
         self.0.value.update(|v| v + count);
     }
-    pub fn reset(&mut self) {
-        self.0.value.set(0.0);
-    }
     pub fn collector(&self) -> CounterCollector {
         CounterCollector(Arc::downgrade(&self.0))
     }
@@ -139,4 +136,27 @@ struct Inner {
     help: Option<Help>,
     timestamp: Timestamp,
     value: AtomicF64,
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn it_works() {
+        let mut counter = track_try_unwrap!(
+            CounterBuilder::new("foo")
+                .namespace("test")
+                .subsystem("counter")
+                .finish()
+        );
+        assert_eq!(counter.name(), "test_counter_foo_total");
+        assert_eq!(counter.value(), 0.0);
+
+        counter.inc();
+        assert_eq!(counter.value(), 1.0);
+
+        counter.inc_by(3.45);
+        assert_eq!(counter.value(), 4.45);
+    }
 }
