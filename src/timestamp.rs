@@ -37,6 +37,20 @@ impl Timestamp {
     }
 }
 
+pub(crate) fn now_unixtime_seconds() -> f64 {
+    let now = SystemTime::now();
+    if let Ok(d) = now.duration_since(UNIX_EPOCH) {
+        duration_to_unixtime_seconds(d)
+    } else {
+        let d = UNIX_EPOCH.duration_since(now).expect("Never fails");
+        -duration_to_unixtime_seconds(d)
+    }
+}
+
+pub(crate) fn duration_to_unixtime_seconds(d: Duration) -> f64 {
+    d.as_secs() as f64 + (d.subsec_nanos() as f64) / 1000_000_000.0
+}
+
 #[derive(Debug)]
 pub struct TimestampMut<'a>(pub(crate) &'a Timestamp); // TODO
 impl<'a> TimestampMut<'a> {
