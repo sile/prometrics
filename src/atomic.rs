@@ -1,6 +1,7 @@
 pub use self::atomic::Atomic64;
 
 pub type AtomicF64 = atomic::Atomic64<f64>;
+pub type AtomicU64 = atomic::Atomic64<u64>;
 
 // TODO: rename
 #[cfg(target_pointer_width = "64")]
@@ -34,6 +35,11 @@ mod atomic {
             );
         }
     }
+    impl Atomic64<u64> {
+        pub fn inc(&self) {
+            self.value.fetch_add(1, Ordering::SeqCst);
+        }
+    }
 }
 #[cfg(not(target_pointer_width = "64"))]
 mod atomic {
@@ -58,6 +64,11 @@ mod atomic {
             }
         }
     }
+    impl Atomic64<u64> {
+        pub fn inc(&self) {
+            self.value.update(|v| *v + 1);
+        }
+    }
 }
 impl<T: Default + Copy> atomic::Atomic64<T> {
     pub fn update<F>(&self, f: F)
@@ -75,7 +86,7 @@ mod test {
 
     #[test]
     fn atomic_f64_works() {
-        let mut value = AtomicF64::new(0.0);
+        let value = AtomicF64::new(0.0);
         assert_eq!(value.get(), 0.0);
 
         value.set(123456789.0);

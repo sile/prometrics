@@ -9,6 +9,7 @@ pub use registry::{default_registry, CollectorRegistry};
 
 // pub mod format;
 // pub mod metric;
+pub mod bucket;
 pub mod label;
 pub mod metrics;
 // pub mod types;

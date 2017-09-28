@@ -1,15 +1,14 @@
 use std::iter;
 
 use {Result, ErrorKind};
-use metrics::Counter;
+use metrics::{Counter, Gauge, Summary, Histogram};
 
 #[derive(Debug, Clone)]
 pub enum Metric {
     Counter(Counter),
-    // Gauge(Gauge),
-    // Summary(Summary),
-    // Untyped(Untyped),
-    // Histogram(Histogram),
+    Gauge(Gauge),
+    Summary(Summary),
+    Histogram(Histogram),
 }
 
 #[derive(Debug)]
