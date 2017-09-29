@@ -13,8 +13,14 @@ use timestamp::{self, Timestamp, TimestampMut};
 #[derive(Debug, Clone)]
 pub struct Histogram(Arc<Inner>);
 impl Histogram {
-    pub fn name(&self) -> &str {
-        self.0.name.as_str()
+    pub fn bucket_name(&self) -> &str {
+        self.0.bucket_name.as_str()
+    }
+    pub fn count_name(&self) -> &str {
+        self.0.count_name.as_str()
+    }
+    pub fn sum_name(&self) -> &str {
+        self.0.sum_name.as_str()
     }
     pub fn help(&self) -> Option<&str> {
         self.0.help.as_ref().map(|h| h.0.as_ref())
@@ -125,7 +131,7 @@ impl HistogramBuilder {
         self
     }
     pub fn label(&mut self, name: &str, value: &str) -> &mut Self {
-        assert_ne!(name, "le");
+        assert_ne!(name, "le"); // TODO: validate in `finish` method
         self.labels.retain(|l| l.0 != name);
         self.labels.push((name.to_string(), value.to_string()));
         self.labels.sort();
@@ -139,11 +145,20 @@ impl HistogramBuilder {
         self.registry(default_registry())
     }
     pub fn finish(&self) -> Result<Histogram> {
-        let name = track!(MetricName::new(
-            self.namespace.as_ref().map(AsRef::as_ref),
-            self.subsystem.as_ref().map(AsRef::as_ref),
+        let namespace = self.namespace.as_ref().map(AsRef::as_ref);
+        let subsystem = self.subsystem.as_ref().map(AsRef::as_ref);
+        let bucket_name = track!(MetricName::new(namespace, subsystem, &self.name, None))?;
+        let count_name = track!(MetricName::new(
+            namespace,
+            subsystem,
             &self.name,
-            Some("total"),
+            Some("count"),
+        ))?;
+        let sum_name = track!(MetricName::new(
+            namespace,
+            subsystem,
+            &self.name,
+            Some("sum"),
         ))?;
         let labels = track!(
             self.labels
@@ -161,7 +176,9 @@ impl HistogramBuilder {
             )
         });
         let inner = Inner {
-            name,
+            bucket_name,
+            count_name,
+            sum_name,
             labels: Labels::new(labels),
             help: self.help.clone().map(Help),
             timestamp: Timestamp::new(),
@@ -171,7 +188,7 @@ impl HistogramBuilder {
         };
         let histogram = Histogram(Arc::new(inner));
         for r in self.registries.iter() {
-            r.register(histogram.collector());
+            track!(r.register(histogram.collector()))?;
         }
         Ok(histogram)
     }
@@ -191,11 +208,38 @@ impl Collector for HistogramCollector {
 
 #[derive(Debug)]
 struct Inner {
-    name: MetricName,
+    bucket_name: MetricName,
+    count_name: MetricName,
+    sum_name: MetricName,
     labels: Labels,
     help: Option<Help>,
     timestamp: Timestamp,
     buckets: Vec<Bucket>,
     count: AtomicU64,
     sum: AtomicF64,
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn it_works() {
+        let mut histogram =
+            track_try_unwrap!(HistogramBuilder::with_linear_buckets("foo", 0.0, 10.0, 5).finish());
+        assert_eq!(histogram.bucket_name(), "foo");
+        assert_eq!(histogram.count_name(), "foo_count");
+        assert_eq!(histogram.sum_name(), "foo_sum");
+
+        histogram.observe(7.0);
+        histogram.observe(12.0);
+        histogram.observe(50.1);
+        histogram.observe(10.0);
+        assert_eq!(
+            histogram.cumulative_buckets().collect::<Vec<_>>(),
+            [(0.0, 0), (10.0, 2), (20.0, 3), (30.0, 3), (40.0, 3)]
+        );
+        assert_eq!(histogram.count(), 4);
+        assert_eq!(histogram.sum(), 79.1);
+    }
 }

@@ -3,6 +3,96 @@ use std::iter;
 use {Result, ErrorKind};
 use metrics::{Counter, Gauge, Summary, Histogram};
 
+// TODO: MetricsFamily (?)
+#[derive(Debug, Clone)]
+pub struct MetricFamily {
+    name: MetricName,
+    help: Option<Help>,
+
+    // TODO
+    pub metrics: Metrics,
+}
+impl MetricFamily {
+    pub fn new(metric: Metric) -> Self {
+        match metric {
+            Metric::Counter(m) => {
+                MetricFamily {
+                    name: MetricName(m.name().to_string()),
+                    help: m.help().map(|h| Help(h.to_string())),
+                    metrics: Metrics::Counter(vec![m]),
+                }
+            }
+            Metric::Gauge(m) => {
+                MetricFamily {
+                    name: MetricName(m.name().to_string()),
+                    help: m.help().map(|h| Help(h.to_string())),
+                    metrics: Metrics::Gauge(vec![m]),
+                }
+            }
+            Metric::Summary(m) => {
+                MetricFamily {
+                    name: MetricName(m.quantile_name().to_string()),
+                    help: m.help().map(|h| Help(h.to_string())),
+                    metrics: Metrics::Summary(vec![m]),
+                }
+            }
+            Metric::Histogram(m) => {
+                MetricFamily {
+                    name: MetricName(m.bucket_name().to_string()),
+                    help: m.help().map(|h| Help(h.to_string())),
+                    metrics: Metrics::Histogram(vec![m]),
+                }
+            }
+        }
+    }
+    pub fn name(&self) -> &str {
+        self.name.as_str()
+    }
+    pub fn kind(&self) -> MetricKind {
+        match self.metrics {
+            Metrics::Counter(_) => MetricKind::Counter,
+            Metrics::Gauge(_) => MetricKind::Gauge,
+            Metrics::Summary(_) => MetricKind::Summary,
+            Metrics::Histogram(_) => MetricKind::Histogram,
+        }
+    }
+    pub(crate) fn same_family(&self, metric: &Metric) -> bool {
+        (self.name(), self.kind()) == (metric.name(), metric.kind())
+    }
+    pub(crate) fn push(&mut self, metric: Metric) {
+        match metric {
+            Metric::Counter(m) => {
+                if let Metrics::Counter(ref mut v) = self.metrics {
+                    v.push(m);
+                }
+            }
+            Metric::Gauge(m) => {
+                if let Metrics::Gauge(ref mut v) = self.metrics {
+                    v.push(m);
+                }
+            }
+            Metric::Summary(m) => {
+                if let Metrics::Summary(ref mut v) = self.metrics {
+                    v.push(m);
+                }
+            }
+            Metric::Histogram(m) => {
+                if let Metrics::Histogram(ref mut v) = self.metrics {
+                    v.push(m);
+                }
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Metrics {
+    Counter(Vec<Counter>),
+    Gauge(Vec<Gauge>),
+    Summary(Vec<Summary>),
+    Histogram(Vec<Histogram>),
+}
+
 #[derive(Debug, Clone)]
 pub enum Metric {
     Counter(Counter),
@@ -10,8 +100,34 @@ pub enum Metric {
     Summary(Summary),
     Histogram(Histogram),
 }
+impl Metric {
+    pub fn name(&self) -> &str {
+        match *self {
+            Metric::Counter(ref m) => m.name(),
+            Metric::Gauge(ref m) => m.name(),
+            Metric::Summary(ref m) => m.quantile_name(),
+            Metric::Histogram(ref m) => m.bucket_name(),
+        }
+    }
+    pub fn kind(&self) -> MetricKind {
+        match *self {
+            Metric::Counter(_) => MetricKind::Counter,
+            Metric::Gauge(_) => MetricKind::Gauge,
+            Metric::Summary(_) => MetricKind::Summary,
+            Metric::Histogram(_) => MetricKind::Histogram,
+        }
+    }
+}
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum MetricKind {
+    Counter,
+    Gauge,
+    Summary,
+    Histogram,
+}
+
+#[derive(Debug, Clone)]
 pub struct MetricName(String);
 impl MetricName {
     pub fn new(
@@ -36,7 +152,7 @@ impl MetricName {
 }
 
 // TODO: escape newline and '\\'
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Help(pub String);
 
 fn validate_metric_name(name: &str) -> Result<()> {

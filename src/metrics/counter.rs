@@ -111,7 +111,7 @@ impl CounterBuilder {
         };
         let counter = Counter(Arc::new(inner));
         for r in self.registries.iter() {
-            r.register(counter.collector());
+            track!(r.register(counter.collector()))?;
         }
         Ok(counter)
     }

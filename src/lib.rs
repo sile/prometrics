@@ -5,7 +5,7 @@ extern crate trackable;
 pub use collector::Collector;
 pub use error::{Error, ErrorKind};
 pub use metric::Metric;
-pub use registry::{default_registry, CollectorRegistry};
+pub use registry::{default_registry, CollectorRegistry, MetricsGatherer};
 
 // pub mod format;
 // pub mod metric;

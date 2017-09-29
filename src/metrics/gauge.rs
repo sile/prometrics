@@ -148,7 +148,7 @@ impl GaugeBuilder {
         };
         let gauge = Gauge(Arc::new(inner));
         for r in self.registries.iter() {
-            r.register(gauge.collector());
+            track!(r.register(gauge.collector()))?;
         }
         Ok(gauge)
     }

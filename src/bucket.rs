@@ -39,11 +39,11 @@ impl<'a> CumulativeBuckets<'a> {
     }
 }
 impl<'a> Iterator for CumulativeBuckets<'a> {
-    type Item = (u64, f64);
+    type Item = (f64, u64);
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next().map(|b| {
             self.cumulative_count += b.count();
-            (self.cumulative_count, b.upper_bound())
+            (b.upper_bound(), self.cumulative_count)
         })
     }
 }
