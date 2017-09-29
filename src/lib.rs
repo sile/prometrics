@@ -7,12 +7,9 @@ pub use error::{Error, ErrorKind};
 pub use metric::Metric;
 pub use registry::{default_registry, CollectorRegistry, MetricsGatherer};
 
-// pub mod format;
-// pub mod metric;
 pub mod bucket;
 pub mod label;
 pub mod metrics;
-// pub mod types;
 pub mod timestamp;
 
 mod atomic;
