@@ -1,4 +1,5 @@
 use std;
+use std::fmt;
 use atomic_immut::AtomicImmut;
 
 use {Result, ErrorKind};
@@ -26,6 +27,11 @@ impl Label {
     }
     pub fn value(&self) -> &str {
         &self.value
+    }
+}
+impl fmt::Display for Label {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}={:?}", self.name, self.value)
     }
 }
 
@@ -61,6 +67,22 @@ impl Labels {
     }
     pub fn len(&self) -> usize {
         self.0.load().len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+impl fmt::Display for Labels {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{{")?;
+        for (i, label) in self.iter().enumerate() {
+            if i != 0 {
+                write!(f, ",")?;
+            }
+            write!(f, "{}", label)?;
+        }
+        write!(f, "}}")?;
+        Ok(())
     }
 }
 

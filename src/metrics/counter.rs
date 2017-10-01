@@ -1,3 +1,4 @@
+use std::fmt;
 use std::iter;
 use std::sync::{Arc, Weak};
 
@@ -23,10 +24,10 @@ impl Counter {
     pub fn labels_mut(&mut self) -> LabelsMut {
         LabelsMut::new(&self.0.labels)
     }
-    pub fn timetamp(&self) -> &Timestamp {
+    pub fn timestamp(&self) -> &Timestamp {
         &self.0.timestamp
     }
-    pub fn timetamp_mut(&mut self) -> TimestampMut {
+    pub fn timestamp_mut(&mut self) -> TimestampMut {
         TimestampMut(&self.0.timestamp)
     }
     pub fn value(&self) -> f64 {
@@ -41,6 +42,19 @@ impl Counter {
     }
     pub fn collector(&self) -> CounterCollector {
         CounterCollector(Arc::downgrade(&self.0))
+    }
+}
+impl fmt::Display for Counter {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.name())?;
+        if !self.labels().is_empty() {
+            write!(f, "{}", self.labels())?;
+        }
+        write!(f, " {}", self.value())?;
+        if let Some(timestamp) = self.timestamp().get() {
+            write!(f, " {}", timestamp)?;
+        }
+        Ok(())
     }
 }
 
@@ -158,5 +172,12 @@ mod test {
 
         counter.inc_by(3.45);
         assert_eq!(counter.value(), 4.45);
+
+        assert_eq!(counter.to_string(), "test_counter_foo_total 4.45");
+        track_try_unwrap!(counter.labels_mut().insert("bar", "baz").map(|_| ()));
+        assert_eq!(
+            counter.to_string(),
+            r#"test_counter_foo_total{bar="baz"} 4.45"#
+        );
     }
 }
