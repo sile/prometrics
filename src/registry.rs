@@ -1,10 +1,24 @@
+use std::sync::Mutex;
 use std::sync::mpsc;
 
 use {Result, Error, Collector};
 use metric::MetricFamily;
 
+lazy_static! {
+    static ref DEFAULT_GATHERER: Mutex<MetricsGatherer> = Mutex::new(MetricsGatherer::new());
+}
+
+pub fn default_gatherer() -> &'static Mutex<MetricsGatherer> {
+    &DEFAULT_GATHERER
+}
+
 pub fn default_registry() -> CollectorRegistry {
-    unimplemented!()
+    if let Ok(gatherer) = default_gatherer().lock() {
+        gatherer.registry()
+    } else {
+        let (tx, _) = mpsc::channel();
+        CollectorRegistry { tx }
+    }
 }
 
 #[derive(Debug, Clone)]

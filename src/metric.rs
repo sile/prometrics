@@ -48,6 +48,9 @@ impl MetricFamily {
     pub fn name(&self) -> &str {
         self.name.as_str()
     }
+    pub fn help(&self) -> Option<&str> {
+        self.help.as_ref().map(|h| h.0.as_ref())
+    }
     pub fn kind(&self) -> MetricKind {
         match self.metrics {
             Metrics::Counter(_) => MetricKind::Counter,

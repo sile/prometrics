@@ -5,4 +5,5 @@ authors = ["Takeru Ohta <phjgt308@gmail.com>"]
 
 [dependencies]
 atomic_immut = "0.1"
+lazy_static = "0.2"
 trackable = "0.2"

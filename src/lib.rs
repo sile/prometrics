@@ -1,11 +1,13 @@
 extern crate atomic_immut;
 #[macro_use]
+extern crate lazy_static;
+#[macro_use]
 extern crate trackable;
 
 pub use collector::Collector;
 pub use error::{Error, ErrorKind};
-pub use metric::Metric;
-pub use registry::{default_registry, CollectorRegistry, MetricsGatherer};
+pub use metric::{Metric, MetricFamily, MetricKind};
+pub use registry::{default_registry, default_gatherer, CollectorRegistry, MetricsGatherer};
 
 pub mod bucket;
 pub mod label;
