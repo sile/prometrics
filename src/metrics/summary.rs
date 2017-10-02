@@ -4,7 +4,7 @@ use std::iter;
 use std::sync::{Arc, Weak, Mutex};
 use std::time::{Instant, Duration, SystemTime};
 
-use {Result, Metric, Collector, CollectorRegistry};
+use {Result, Metric, Collect, CollectorRegistry};
 use default_registry;
 use atomic::{AtomicF64, AtomicU64};
 use label::{Label, Labels};
@@ -263,12 +263,11 @@ impl SummaryBuilder {
 
 #[derive(Debug, Clone)]
 pub struct SummaryCollector(Weak<Inner>);
-impl Collector for SummaryCollector {
-    fn collect(&mut self) -> Option<Box<Iterator<Item = Metric>>> {
+impl Collect for SummaryCollector {
+    type Metrics = iter::Once<Metric>;
+    fn collect(&mut self) -> Option<Self::Metrics> {
         self.0.upgrade().map(|inner| {
-            let iter: Box<Iterator<Item = _>> =
-                Box::new(iter::once(Metric::Summary(Summary(inner))));
-            iter
+            iter::once(Metric::Summary(Summary(inner)))
         })
     }
 }

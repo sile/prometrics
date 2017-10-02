@@ -1,7 +1,7 @@
 use std::sync::Mutex;
 use std::sync::mpsc;
 
-use {Result, Error, Collector};
+use {Result, Error, Collect, Metric};
 use metric::MetricFamily;
 
 lazy_static! {
@@ -21,23 +21,36 @@ pub fn default_registry() -> CollectorRegistry {
     }
 }
 
+struct Collector(Box<FnMut(&mut Vec<Metric>) -> bool + Send + 'static>);
+impl Collector {
+    fn collect(&mut self, metrics: &mut Vec<Metric>) -> bool {
+        (self.0)(metrics)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct CollectorRegistry {
-    tx: mpsc::Sender<Box<Collector + Send + 'static>>,
+    tx: mpsc::Sender<Collector>,
 }
 impl CollectorRegistry {
-    pub fn register<C>(&self, collector: C) -> Result<()>
+    pub fn register<C>(&self, mut collector: C) -> Result<()>
     where
-        C: Collector + Send + 'static,
+        C: Collect + Send + 'static,
     {
-        track!(self.tx.send(Box::new(collector)).map_err(Error::from))
+        let f = move |metrics: &mut Vec<Metric>| if let Some(m) = collector.collect() {
+            metrics.extend(m);
+            true
+        } else {
+            false
+        };
+        track!(self.tx.send(Collector(Box::new(f))).map_err(Error::from))
     }
 }
 
 pub struct MetricsGatherer {
-    tx: mpsc::Sender<Box<Collector + Send + 'static>>,
-    rx: mpsc::Receiver<Box<Collector + Send + 'static>>,
-    collectors: Vec<Box<Collector + Send + 'static>>,
+    tx: mpsc::Sender<Collector>,
+    rx: mpsc::Receiver<Collector>,
+    collectors: Vec<Collector>,
 }
 impl MetricsGatherer {
     pub fn new() -> Self {
@@ -59,8 +72,7 @@ impl MetricsGatherer {
         let mut metrics = Vec::new();
         let mut i = 0;
         while i < self.collectors.len() {
-            if let Some(m) = self.collectors[i].collect() {
-                metrics.extend(m);
+            if self.collectors[i].collect(&mut metrics) {
                 i += 1;
             } else {
                 self.collectors.swap_remove(i);

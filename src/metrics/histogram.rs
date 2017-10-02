@@ -3,7 +3,7 @@ use std::iter;
 use std::sync::{Arc, Weak};
 use std::time::Instant;
 
-use {Result, Metric, Collector, CollectorRegistry};
+use {Result, Metric, Collect, CollectorRegistry};
 use default_registry;
 use atomic::{AtomicF64, AtomicU64};
 use bucket::{Bucket, CumulativeBuckets};
@@ -243,12 +243,11 @@ impl HistogramBuilder {
 
 #[derive(Debug, Clone)]
 pub struct HistogramCollector(Weak<Inner>);
-impl Collector for HistogramCollector {
-    fn collect(&mut self) -> Option<Box<Iterator<Item = Metric>>> {
+impl Collect for HistogramCollector {
+    type Metrics = iter::Once<Metric>;
+    fn collect(&mut self) -> Option<Self::Metrics> {
         self.0.upgrade().map(|inner| {
-            let iter: Box<Iterator<Item = _>> =
-                Box::new(iter::once(Metric::Histogram(Histogram(inner))));
-            iter
+            iter::once(Metric::Histogram(Histogram(inner)))
         })
     }
 }
