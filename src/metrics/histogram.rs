@@ -1,3 +1,4 @@
+use std::fmt;
 use std::iter;
 use std::sync::{Arc, Weak};
 use std::time::Instant;
@@ -13,6 +14,9 @@ use timestamp::{self, Timestamp, TimestampMut};
 #[derive(Debug, Clone)]
 pub struct Histogram(Arc<Inner>);
 impl Histogram {
+    pub fn family_name(&self) -> &str {
+        self.0.bucket_name.as_str()
+    }
     pub fn bucket_name(&self) -> &str {
         self.0.bucket_name.as_str()
     }
@@ -52,7 +56,7 @@ impl Histogram {
                 b.upper_bound().partial_cmp(&value).expect("Never fails")
             })
             .unwrap_or_else(|i| i);
-        self.0.buckets.get(i).as_ref().map(|b| b.inc());
+        self.0.buckets.get(i).map(|b| b.increment());
         self.0.count.inc();
         self.0.sum.update(|v| v + value);
     }
@@ -74,6 +78,50 @@ impl Histogram {
     }
     pub fn collector(&self) -> HistogramCollector {
         HistogramCollector(Arc::downgrade(&self.0))
+    }
+}
+impl fmt::Display for Histogram {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let labels = if !self.labels().is_empty() {
+            self.labels().to_string()
+        } else {
+            "".to_string()
+        };
+        let timestamp = if let Some(t) = self.timetamp().get() {
+            format!(" {}", t)
+        } else {
+            "".to_string()
+        };
+
+        for bucket in self.buckets() {
+            write!(
+                f,
+                "{}_bucket{{le=\"{}\"",
+                self.family_name(),
+                bucket.upper_bound()
+            )?;
+            for label in self.labels().iter() {
+                write!(f, ",{}={:?}", label.name(), label.value())?;
+            }
+            writeln!(f, "}} {}{}", bucket.count(), timestamp)?;
+        }
+        writeln!(
+            f,
+            "{}_sum{} {}{}",
+            self.family_name(),
+            labels,
+            self.sum(),
+            timestamp
+        )?;
+        write!(
+            f,
+            "{}_count{} {}{}",
+            self.family_name(),
+            labels,
+            self.count(),
+            timestamp
+        )?;
+        Ok(())
     }
 }
 
@@ -114,8 +162,7 @@ impl HistogramBuilder {
         this
     }
     pub fn bucket(&mut self, upper_bound: f64) -> &mut Self {
-        assert_ne!(upper_bound, ::std::f64::NAN); // TODO: move to `bucket` module
-        self.buckets.push(Bucket::new(upper_bound));
+        self.buckets.push(Bucket::new(upper_bound).expect("TODO"));
         self
     }
     pub fn namespace(&mut self, namespace: &str) -> &mut Self {
@@ -168,7 +215,7 @@ impl HistogramBuilder {
         )?;
         let mut buckets = self.buckets
             .iter()
-            .map(|b| Bucket::new(b.upper_bound()))
+            .map(|b| Bucket::new(b.upper_bound()).expect("TODO"))
             .collect::<Vec<_>>();
         buckets.sort_by(|a, b| {
             a.upper_bound().partial_cmp(&b.upper_bound()).expect(
@@ -241,5 +288,16 @@ mod test {
         );
         assert_eq!(histogram.count(), 4);
         assert_eq!(histogram.sum(), 79.1);
+
+        assert_eq!(
+            histogram.to_string(),
+            r#"foo_bucket{le="0"} 0
+foo_bucket{le="10"} 2
+foo_bucket{le="20"} 1
+foo_bucket{le="30"} 0
+foo_bucket{le="40"} 0
+foo_sum 79.1
+foo_count 4"#
+        );
     }
 }

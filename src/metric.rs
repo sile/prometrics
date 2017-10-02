@@ -1,3 +1,4 @@
+use std::fmt;
 use std::iter;
 
 use {Result, ErrorKind};
@@ -87,6 +88,17 @@ impl MetricFamily {
         }
     }
 }
+impl fmt::Display for MetricFamily {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if let Some(help) = self.help() {
+            // TODO: escape
+            writeln!(f, "# HELP {} {}", self.name(), help)?;
+        }
+        writeln!(f, "# TYPE {} {}", self.name(), self.kind())?;
+        writeln!(f, "{}", self.metrics)?;
+        Ok(())
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum Metrics {
@@ -94,6 +106,33 @@ pub enum Metrics {
     Gauge(Vec<Gauge>),
     Summary(Vec<Summary>),
     Histogram(Vec<Histogram>),
+}
+impl fmt::Display for Metrics {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Metrics::Counter(ref v) => {
+                for m in v.iter() {
+                    writeln!(f, "{}", m)?;
+                }
+            }
+            Metrics::Gauge(ref v) => {
+                for m in v.iter() {
+                    writeln!(f, "{}", m)?;
+                }
+            }
+            Metrics::Summary(ref v) => {
+                for m in v.iter() {
+                    writeln!(f, "{}", m)?;
+                }
+            }
+            Metrics::Histogram(ref v) => {
+                for m in v.iter() {
+                    writeln!(f, "{}", m)?;
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -128,6 +167,16 @@ pub enum MetricKind {
     Gauge,
     Summary,
     Histogram,
+}
+impl fmt::Display for MetricKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            MetricKind::Counter => write!(f, "counter"),
+            MetricKind::Gauge => write!(f, "gauge"),
+            MetricKind::Summary => write!(f, "summary"),
+            MetricKind::Histogram => write!(f, "histogram"),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

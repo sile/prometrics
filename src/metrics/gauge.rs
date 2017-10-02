@@ -1,3 +1,4 @@
+use std::fmt;
 use std::iter;
 use std::sync::{Arc, Weak};
 use std::time::Instant;
@@ -33,6 +34,9 @@ impl Gauge {
     // TODO: get (?)
     pub fn value(&self) -> f64 {
         self.0.value.get()
+    }
+    pub fn timestamp(&self) -> &Timestamp {
+        &self.0.timestamp
     }
     pub fn inc(&mut self) {
         self.inc_by(1.0);
@@ -73,6 +77,19 @@ impl Gauge {
     }
     pub fn collector(&self) -> GaugeCollector {
         GaugeCollector(Arc::downgrade(&self.0))
+    }
+}
+impl fmt::Display for Gauge {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.name())?;
+        if !self.labels().is_empty() {
+            write!(f, "{}", self.labels())?;
+        }
+        write!(f, " {}", self.value())?;
+        if let Some(timestamp) = self.timestamp().get() {
+            write!(f, " {}", timestamp)?;
+        }
+        Ok(())
     }
 }
 
@@ -172,4 +189,23 @@ struct Inner {
     help: Option<Help>,
     timestamp: Timestamp,
     value: AtomicF64,
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn it_works() {
+        let mut gauge = track_try_unwrap!(GaugeBuilder::new("foo").namespace("test").finish());
+        assert_eq!(gauge.name(), "test_foo");
+        assert_eq!(gauge.value(), 0.0);
+
+        gauge.set(2.34);
+        assert_eq!(gauge.value(), 2.34);
+
+        assert_eq!(gauge.to_string(), "test_foo 2.34");
+        track_try_unwrap!(gauge.labels_mut().insert("bar", "baz").map(|_| ()));
+        assert_eq!(gauge.to_string(), r#"test_foo{bar="baz"} 2.34"#);
+    }
 }

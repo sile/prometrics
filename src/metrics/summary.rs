@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::fmt;
 use std::iter;
 use std::sync::{Arc, Weak, Mutex};
 use std::time::{Instant, Duration, SystemTime};
@@ -13,6 +14,10 @@ use timestamp::{self, Timestamp, TimestampMut};
 #[derive(Debug, Clone)]
 pub struct Summary(Arc<Inner>);
 impl Summary {
+    pub fn family_name(&self) -> &str {
+        self.0.quantile_name.as_str()
+    }
+
     pub fn quantile_name(&self) -> &str {
         self.0.quantile_name.as_str()
     }
@@ -112,6 +117,45 @@ impl Summary {
     }
     pub fn collector(&self) -> SummaryCollector {
         SummaryCollector(Arc::downgrade(&self.0))
+    }
+}
+impl fmt::Display for Summary {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let labels = if !self.labels().is_empty() {
+            self.labels().to_string()
+        } else {
+            "".to_string()
+        };
+        let timestamp = if let Some(t) = self.timetamp().get() {
+            format!(" {}", t)
+        } else {
+            "".to_string()
+        };
+
+        for (quantile, value) in self.quantiles() {
+            write!(f, "{}{{quantile=\"{}\"", self.family_name(), quantile)?;
+            for label in self.labels().iter() {
+                write!(f, ",{}={:?}", label.name(), label.value())?;
+            }
+            writeln!(f, "}} {}{}", value, timestamp)?;
+        }
+        writeln!(
+            f,
+            "{}_sum{} {}{}",
+            self.family_name(),
+            labels,
+            self.sum(),
+            timestamp
+        )?;
+        write!(
+            f,
+            "{}_count{} {}{}",
+            self.family_name(),
+            labels,
+            self.count(),
+            timestamp
+        )?;
+        Ok(())
     }
 }
 
@@ -274,5 +318,14 @@ mod test {
         );
         assert_eq!(summary.count(), 5);
         assert_eq!(summary.sum(), 112.0);
+
+        assert_eq!(
+            summary.to_string(),
+            r#"foo{quantile="0.25"} 10
+foo{quantile="0.5"} 12
+foo{quantile="0.75"} 33
+foo_sum 112
+foo_count 5"#
+        );
     }
 }
