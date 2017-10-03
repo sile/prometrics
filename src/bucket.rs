@@ -1,7 +1,6 @@
 //! Bucket for [histogram][histogram] metric.
 //!
 //! [histogram]: https://prometheus.io/docs/concepts/metric_types/#histogram
-use std;
 use std::slice;
 
 use {Result, ErrorKind};
@@ -31,7 +30,7 @@ impl Bucket {
     }
 
     pub(crate) fn new(upper_bound: f64) -> Result<Self> {
-        track_assert_ne!(upper_bound, std::f64::NAN, ErrorKind::InvalidInput);
+        track_assert!(!upper_bound.is_nan(), ErrorKind::InvalidInput);
         Ok(Bucket {
             count: AtomicU64::new(0),
             upper_bound,

@@ -17,12 +17,13 @@ extern crate trackable;
 
 pub use collect::Collect;
 pub use error::{Error, ErrorKind};
-pub use metric::{Metric, MetricFamily, MetricKind};
+pub use metric::{Metric, MetricFamily, MetricKind, MetricName};
 pub use registry::{default_registry, default_gatherer, CollectorRegistry, MetricsGatherer};
 
 pub mod bucket;
 pub mod label;
 pub mod metrics;
+pub mod quantile;
 pub mod timestamp;
 
 mod atomic;

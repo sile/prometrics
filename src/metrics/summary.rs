@@ -1,110 +1,98 @@
+use std::cmp;
 use std::collections::VecDeque;
 use std::fmt;
 use std::iter;
 use std::sync::{Arc, Weak, Mutex};
 use std::time::{Instant, Duration, SystemTime};
 
-use {Result, Metric, Collect, CollectorRegistry};
+use {Result, ErrorKind, Metric, Collect, CollectorRegistry};
 use default_registry;
 use atomic::{AtomicF64, AtomicU64};
-use label::{Label, Labels};
-use metric::{MetricName, Help};
+use label::{Label, Labels, LabelsMut};
+use metric::MetricName;
+use quantile::Quantile;
 use timestamp::{self, Timestamp, TimestampMut};
 
+/// `Summary` samples observations (usually things like request durations and response sizes).
+///
+/// It provides a total count of observations and a sum of all observed values,
+/// and it calculates configurable quantiles over a sliding time window.
 #[derive(Debug, Clone)]
 pub struct Summary(Arc<Inner>);
 impl Summary {
-    pub fn family_name(&self) -> &str {
-        self.0.quantile_name.as_str()
+    /// Returns the name of this summary.
+    pub fn metric_name(&self) -> &MetricName {
+        &self.0.quantile_name
     }
 
-    pub fn quantile_name(&self) -> &str {
-        self.0.quantile_name.as_str()
-    }
-    pub fn count_name(&self) -> &str {
-        self.0.count_name.as_str()
-    }
-    pub fn sum_name(&self) -> &str {
-        self.0.sum_name.as_str()
-    }
+    /// Returns the help of this summary.
     pub fn help(&self) -> Option<&str> {
-        self.0.help.as_ref().map(|h| h.0.as_ref())
+        self.0.help.as_ref().map(|h| h.as_ref())
     }
+
+    /// Returns the user defined labels of this summary.
     pub fn labels(&self) -> &Labels {
         &self.0.labels
     }
-    // TODO: SummaryLabelsMut
-    // pub fn labels_mut(&mut self) -> LabelsMut {
-    //     LabelsMut::new(&self.0.labels)
-    // }
+
+    /// Returns the mutable user defined labels of this summary.
+    pub fn labels_mut(&mut self) -> LabelsMut {
+        LabelsMut::new(&self.0.labels, Some("quantile"))
+    }
+
+    /// Returns the timestamp of this summary.
     pub fn timetamp(&self) -> &Timestamp {
         &self.0.timestamp
     }
+
+    /// Returns the mutable timestamp of this summary.
     pub fn timetamp_mut(&mut self) -> TimestampMut {
         TimestampMut(&self.0.timestamp)
     }
-    pub fn quantiles(&self) -> Vec<(f64, f64)> {
-        // TODO: 共通化
-        let mut samples = if let Ok(mut samples) = self.0.samples.lock() {
-            let now = SystemTime::now();
-            while samples
-                .front()
-                .and_then(|s| now.duration_since(s.0).ok())
-                .and_then(|d| if d > self.0.window { Some(()) } else { None })
-                .is_some()
-            {
-                samples.pop_front();
-            }
+
+    /// Returns the total observation count.
+    pub fn count(&self) -> u64 {
+        self.0.count.get()
+    }
+
+    /// Returns the sum of the observed values.
+    pub fn sum(&self) -> f64 {
+        self.0.sum.get()
+    }
+
+    /// Calculates the quantiles of this summary.
+    pub fn quantiles(&self) -> Vec<Quantile> {
+        let mut samples = self.with_current_samples(|_, samples| {
             samples
                 .iter()
                 .map(|&(_, v)| v)
                 .filter(|v| !v.is_nan())
                 .collect::<Vec<_>>()
-        } else {
-            Vec::new()
-        };
+        });
+        samples.sort_by(|a, b| a.partial_cmp(&b).expect("Never fails"));
+
         if samples.is_empty() {
             return Vec::new();
         }
-
-        samples.sort_by(|a, b| a.partial_cmp(&b).expect("Never fails"));
-        let count = samples.len() as f64;
+        let count = samples.len();
         self.0
             .quantiles
             .iter()
-            .map(|&quantile| {
-                // TODO:
-                let mut index = (quantile * count).floor() as usize;
-                if index == samples.len() {
-                    index -= 1;
-                }
-                (quantile, samples[index])
+            .map(|quantile| {
+                let index = cmp::min(count, (quantile.quantile() * count as f64).round() as usize);
+                quantile.with_value(samples[index])
             })
             .collect()
     }
+
+    /// Observes a value.
     pub fn observe(&mut self, value: f64) {
-        assert_ne!(value, ::std::f64::NAN);
-        if let Ok(mut samples) = self.0.samples.lock() {
-            let now = SystemTime::now();
-            samples.push_back((now, value));
-            while samples
-                .front()
-                .and_then(|s| now.duration_since(s.0).ok())
-                .and_then(|d| if d > self.0.window { Some(()) } else { None })
-                .is_some()
-            {
-                samples.pop_front();
-            }
-        }
+        self.with_current_samples(|now, samples| { samples.push_back((now, value)); });
         self.0.count.inc();
         self.0.sum.update(|v| v + value);
     }
-    pub fn count(&self) -> u64 {
-        self.0.count.get()
-    }
-    pub fn sum(&self) -> f64 {
-        self.0.sum.get()
-    }
+
+    /// Measures the exeuction time of `f` and observes its duration in seconds.
     pub fn time<F, T>(&mut self, f: F) -> T
     where
         F: FnOnce() -> T,
@@ -115,8 +103,30 @@ impl Summary {
         self.observe(elapsed);
         result
     }
+
+    /// Returns a collector for this histogram.
     pub fn collector(&self) -> SummaryCollector {
         SummaryCollector(Arc::downgrade(&self.0))
+    }
+
+    fn with_current_samples<F, T>(&self, f: F) -> T
+    where
+        F: FnOnce(SystemTime, &mut VecDeque<(SystemTime, f64)>) -> T,
+    {
+        let now = SystemTime::now();
+        if let Ok(mut samples) = self.0.samples.lock() {
+            while samples
+                .front()
+                .and_then(|s| now.duration_since(s.0).ok())
+                .and_then(|d| if d > self.0.window { Some(()) } else { None })
+                .is_some()
+            {
+                samples.pop_front();
+            }
+            f(now, &mut samples)
+        } else {
+            f(now, &mut VecDeque::new())
+        }
     }
 }
 impl fmt::Display for Summary {
@@ -132,17 +142,22 @@ impl fmt::Display for Summary {
             "".to_string()
         };
 
-        for (quantile, value) in self.quantiles() {
-            write!(f, "{}{{quantile=\"{}\"", self.family_name(), quantile)?;
+        for quantile in self.quantiles() {
+            write!(
+                f,
+                "{}{{quantile=\"{}\"",
+                self.metric_name(),
+                quantile.quantile()
+            )?;
             for label in self.labels().iter() {
                 write!(f, ",{}={:?}", label.name(), label.value())?;
             }
-            writeln!(f, "}} {}{}", value, timestamp)?;
+            writeln!(f, "}} {}{}", quantile.value(), timestamp)?;
         }
         writeln!(
             f,
             "{}_sum{} {}{}",
-            self.family_name(),
+            self.metric_name(),
             labels,
             self.sum(),
             timestamp
@@ -150,7 +165,7 @@ impl fmt::Display for Summary {
         write!(
             f,
             "{}_count{} {}{}",
-            self.family_name(),
+            self.metric_name(),
             labels,
             self.count(),
             timestamp
@@ -159,6 +174,7 @@ impl fmt::Display for Summary {
     }
 }
 
+/// `Summary` builder.
 #[derive(Debug)]
 pub struct SummaryBuilder {
     namespace: Option<String>,
@@ -171,6 +187,7 @@ pub struct SummaryBuilder {
     registries: Vec<CollectorRegistry>,
 }
 impl SummaryBuilder {
+    /// Makes a builder for summary named `name`.
     pub fn new(name: &str, window: Duration) -> Self {
         SummaryBuilder {
             namespace: None,
@@ -183,69 +200,83 @@ impl SummaryBuilder {
             registries: Vec::new(),
         }
     }
-    pub fn quantile(&mut self, quantile: f64) -> &mut Self {
-        assert_ne!(quantile, ::std::f64::NAN);
-        assert!(quantile >= 0.0);
-        assert!(quantile <= 1.0);
-        self.quantiles.push(quantile);
-        self
-    }
+
+    /// Sets the namespace part of the metric name of this.
     pub fn namespace(&mut self, namespace: &str) -> &mut Self {
         self.namespace = Some(namespace.to_string());
         self
     }
+
+    /// Sets the subsystem part of the metric name of this.
     pub fn subsystem(&mut self, subsystem: &str) -> &mut Self {
         self.subsystem = Some(subsystem.to_string());
         self
     }
+
+    /// Sets the help of this.
     pub fn help(&mut self, help: &str) -> &mut Self {
         self.help = Some(help.to_string());
         self
     }
+
+    /// Adds a label.
+    ///
+    /// Note that `name` will be validated in the invocation of the `finish` method.
+    ///
+    /// The name `"quantile"` is reserved for designating summary quantiles.
     pub fn label(&mut self, name: &str, value: &str) -> &mut Self {
-        assert_ne!(name, "quantile"); // TODO: validate in `finish` method
         self.labels.retain(|l| l.0 != name);
         self.labels.push((name.to_string(), value.to_string()));
         self.labels.sort();
         self
     }
+
+    /// Adds a registry to which the resulting histograms will be registered..
     pub fn registry(&mut self, registry: CollectorRegistry) -> &mut Self {
         self.registries.push(registry);
         self
     }
+
+    /// Adds the default registry.
     pub fn default_registry(&mut self) -> &mut Self {
         self.registry(default_registry())
     }
+
+    /// Adds a quantile.
+    pub fn quantile(&mut self, quantile: f64) -> &mut Self {
+        self.quantiles.push(quantile);
+        self
+    }
+
+    /// Builds a summary.
     pub fn finish(&self) -> Result<Summary> {
         let namespace = self.namespace.as_ref().map(AsRef::as_ref);
         let subsystem = self.subsystem.as_ref().map(AsRef::as_ref);
-        let quantile_name = track!(MetricName::new(namespace, subsystem, &self.name, None))?;
-        let count_name = track!(MetricName::new(
-            namespace,
-            subsystem,
-            &self.name,
-            Some("count"),
-        ))?;
-        let sum_name = track!(MetricName::new(
-            namespace,
-            subsystem,
-            &self.name,
-            Some("sum"),
-        ))?;
+        let quantile_name = track!(MetricName::new(namespace, subsystem, &self.name))?;
         let labels = track!(
             self.labels
                 .iter()
-                .map(|&(ref name, ref value)| track!(Label::new(name, value)))
+                .map(|&(ref name, ref value)| {
+                    track_assert_ne!(name, "quantile", ErrorKind::InvalidInput);
+                    track!(Label::new(name, value))
+                })
                 .collect::<Result<_>>()
         )?;
-        let mut quantiles = self.quantiles.clone();
-        quantiles.sort_by(|a, b| a.partial_cmp(b).expect("Never fails"));
+        let mut quantiles = track!(
+            self.quantiles
+                .iter()
+                .map(|quantile| track!(Quantile::new(*quantile, 0.0)))
+                .collect::<Result<Vec<_>>>()
+        )?;
+        quantiles.sort_by(|a, b| {
+            a.quantile().partial_cmp(&b.quantile()).expect(
+                "Never fails",
+            )
+        });
         let inner = Inner {
             quantile_name,
-            count_name,
-            sum_name,
             labels: Labels::new(labels),
-            help: self.help.clone().map(Help),
+            help: self.help.clone(),
             timestamp: Timestamp::new(),
             window: self.window.clone(),
             quantiles,
@@ -261,6 +292,7 @@ impl SummaryBuilder {
     }
 }
 
+/// `Collect` trait implmentation for `Summary`.
 #[derive(Debug, Clone)]
 pub struct SummaryCollector(Weak<Inner>);
 impl Collect for SummaryCollector {
@@ -275,13 +307,11 @@ impl Collect for SummaryCollector {
 #[derive(Debug)]
 struct Inner {
     quantile_name: MetricName,
-    count_name: MetricName,
-    sum_name: MetricName,
     labels: Labels,
-    help: Option<Help>,
+    help: Option<String>,
     timestamp: Timestamp,
     window: Duration,
-    quantiles: Vec<f64>,
+    quantiles: Vec<Quantile>,
     samples: Mutex<VecDeque<(SystemTime, f64)>>,
     count: AtomicU64,
     sum: AtomicF64,
@@ -302,9 +332,7 @@ mod test {
                 .quantile(0.75)
                 .finish()
         );
-        assert_eq!(summary.quantile_name(), "foo");
-        assert_eq!(summary.count_name(), "foo_count");
-        assert_eq!(summary.sum_name(), "foo_sum");
+        assert_eq!(summary.metric_name().to_string(), "foo");
 
         summary.observe(7.0);
         summary.observe(12.0);

@@ -7,64 +7,109 @@ use {Result, Metric, Collect, CollectorRegistry};
 use default_registry;
 use atomic::AtomicF64;
 use label::{Label, Labels, LabelsMut};
-use metric::{MetricName, Help};
+use metric::MetricName;
 use timestamp::{self, Timestamp, TimestampMut};
 
+/// `Gauge` is a metric that represents a single numerical value that can arbitrarily go up and down.
+///
+/// This is created via `GaugeBuilder`.
+///
+/// Cloned gauges share the same value.
 #[derive(Debug, Clone)]
 pub struct Gauge(Arc<Inner>);
 impl Gauge {
-    pub fn name(&self) -> &str {
-        self.0.name.as_str()
+    /// Returns the name of this gauge.
+    pub fn metric_name(&self) -> &MetricName {
+        &self.0.name
     }
+
+    /// Returns the help of this gauge.
     pub fn help(&self) -> Option<&str> {
-        self.0.help.as_ref().map(|h| h.0.as_ref())
+        self.0.help.as_ref().map(|h| h.as_ref())
     }
+
+    /// Returns the labels of this gauge.
     pub fn labels(&self) -> &Labels {
         &self.0.labels
     }
+
+    /// Returns the mutable labels of this gauge.
     pub fn labels_mut(&mut self) -> LabelsMut {
-        LabelsMut::new(&self.0.labels)
+        LabelsMut::new(&self.0.labels, None)
     }
-    pub fn timetamp(&self) -> &Timestamp {
-        &self.0.timestamp
-    }
-    pub fn timetamp_mut(&mut self) -> TimestampMut {
-        TimestampMut(&self.0.timestamp)
-    }
-    // TODO: get (?)
-    pub fn value(&self) -> f64 {
-        self.0.value.get()
-    }
+
+    /// Returns the timestamp of this gauge.
     pub fn timestamp(&self) -> &Timestamp {
         &self.0.timestamp
     }
-    pub fn inc(&mut self) {
-        self.inc_by(1.0);
+
+    /// Returns the mutable timestamp of this gauge.
+    pub fn timestamp_mut(&mut self) -> TimestampMut {
+        TimestampMut(&self.0.timestamp)
     }
-    pub fn inc_by(&mut self, count: f64) {
+
+    /// Returns the value of this gauge.
+    pub fn value(&self) -> f64 {
+        self.0.value.get()
+    }
+
+    /// Increments this gauge.
+    pub fn increment(&mut self) {
+        self.add(1.0);
+    }
+
+    /// Adds `count` to this gauge.
+    pub fn add(&mut self, count: f64) {
         self.0.value.update(|v| v + count);
     }
-    pub fn dec(&mut self) {
-        self.inc_by(-1.0);
+
+    /// Decrements this gauge.
+    pub fn decrement(&mut self) {
+        self.add(-1.0);
     }
-    pub fn dec_by(&mut self, count: f64) {
-        self.inc_by(-count);
+
+    /// Subtracts `count` from this gauge.
+    pub fn subtract(&mut self, count: f64) {
+        self.add(-count);
     }
+
+    /// Sets this gauge to `value`.
     pub fn set(&mut self, value: f64) {
         self.0.value.set(value);
     }
+
+    /// Sets this gauge to the current unixtime in seconds.
     pub fn set_to_current_time(&mut self) {
         self.set(timestamp::now_unixtime_seconds());
     }
+
+    /// Tracks in-progress processings in some piece of code/function.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use prometrics::metrics::GaugeBuilder;
+    ///
+    /// let mut gauge0 = GaugeBuilder::new("foo").finish().unwrap();
+    /// let gauge1 = gauge0.clone();
+    ///
+    /// assert_eq!(gauge0.value(), 0.0);
+    /// gauge0.track_inprogress(|| {
+    ///     assert_eq!(gauge1.value(), 1.0);
+    /// });
+    /// assert_eq!(gauge0.value(), 0.0);
+    /// ```
     pub fn track_inprogress<F, T>(&mut self, f: F) -> T
     where
         F: FnOnce() -> T,
     {
-        self.inc();
+        self.increment();
         let result = f();
-        self.dec();
+        self.decrement();
         result
     }
+
+    /// Measures the exeuction time of `f` and sets this gauge to its duration in seconds.
     pub fn time<F, T>(&mut self, f: F) -> T
     where
         F: FnOnce() -> T,
@@ -75,13 +120,15 @@ impl Gauge {
         self.set(elapsed);
         result
     }
+
+    /// Returns a collector for this gauge.
     pub fn collector(&self) -> GaugeCollector {
         GaugeCollector(Arc::downgrade(&self.0))
     }
 }
 impl fmt::Display for Gauge {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.name())?;
+        write!(f, "{}", self.metric_name())?;
         if !self.labels().is_empty() {
             write!(f, "{}", self.labels())?;
         }
@@ -93,6 +140,7 @@ impl fmt::Display for Gauge {
     }
 }
 
+/// `Gauge` builder.
 #[derive(Debug)]
 pub struct GaugeBuilder {
     namespace: Option<String>,
@@ -100,55 +148,74 @@ pub struct GaugeBuilder {
     name: String,
     help: Option<String>,
     labels: Vec<(String, String)>,
-    value: f64,
+    initial_value: f64,
     registries: Vec<CollectorRegistry>,
 }
 impl GaugeBuilder {
+    /// Makes a builder for gauges named `name`.
     pub fn new(name: &str) -> Self {
-        Self::with_value(name, 0.0)
-    }
-    pub fn with_value(name: &str, initial_value: f64) -> Self {
         GaugeBuilder {
             namespace: None,
             subsystem: None,
             name: name.to_string(),
             help: None,
             labels: Vec::new(),
-            value: initial_value,
+            initial_value: 0.0,
             registries: Vec::new(),
         }
     }
+
+    /// Sets the namespace part of the metric name of this.
     pub fn namespace(&mut self, namespace: &str) -> &mut Self {
         self.namespace = Some(namespace.to_string());
         self
     }
+
+    /// Sets the subsystem part of the metric name of this.
     pub fn subsystem(&mut self, subsystem: &str) -> &mut Self {
         self.subsystem = Some(subsystem.to_string());
         self
     }
+
+    /// Sets the help of this.
     pub fn help(&mut self, help: &str) -> &mut Self {
         self.help = Some(help.to_string());
         self
     }
+
+    /// Adds a label.
+    ///
+    /// Note that `name` will be validated in the invocation of the `finish` method.
     pub fn label(&mut self, name: &str, value: &str) -> &mut Self {
         self.labels.retain(|l| l.0 != name);
         self.labels.push((name.to_string(), value.to_string()));
         self.labels.sort();
         self
     }
+
+    /// Adds a registry to which the resulting gauges will be registered..
     pub fn registry(&mut self, registry: CollectorRegistry) -> &mut Self {
         self.registries.push(registry);
         self
     }
+
+    /// Adds the default registry.
     pub fn default_registry(&mut self) -> &mut Self {
         self.registry(default_registry())
     }
+
+    /// Sets the initial value of resulting gauges.
+    pub fn initial_value(&mut self, value: f64) -> &mut Self {
+        self.initial_value = value;
+        self
+    }
+
+    /// Builds a gauge.
     pub fn finish(&self) -> Result<Gauge> {
         let name = track!(MetricName::new(
             self.namespace.as_ref().map(AsRef::as_ref),
             self.subsystem.as_ref().map(AsRef::as_ref),
             &self.name,
-            None,
         ))?;
         let labels = track!(
             self.labels
@@ -159,18 +226,19 @@ impl GaugeBuilder {
         let inner = Inner {
             name,
             labels: Labels::new(labels),
-            help: self.help.clone().map(Help),
+            help: self.help.clone(),
             timestamp: Timestamp::new(),
-            value: AtomicF64::new(self.value),
+            value: AtomicF64::new(self.initial_value),
         };
         let gauge = Gauge(Arc::new(inner));
-        for r in self.registries.iter() {
+        for r in &self.registries {
             track!(r.register(gauge.collector()))?;
         }
         Ok(gauge)
     }
 }
 
+/// `Collect` trait implmentation for `Gauge`.
 #[derive(Debug, Clone)]
 pub struct GaugeCollector(Weak<Inner>);
 impl Collect for GaugeCollector {
@@ -186,26 +254,27 @@ impl Collect for GaugeCollector {
 struct Inner {
     name: MetricName,
     labels: Labels,
-    help: Option<Help>,
+    help: Option<String>,
     timestamp: Timestamp,
     value: AtomicF64,
 }
 
 #[cfg(test)]
 mod test {
+    use label::Label;
     use super::*;
 
     #[test]
     fn it_works() {
         let mut gauge = track_try_unwrap!(GaugeBuilder::new("foo").namespace("test").finish());
-        assert_eq!(gauge.name(), "test_foo");
+        assert_eq!(gauge.metric_name().to_string(), "test_foo");
         assert_eq!(gauge.value(), 0.0);
 
         gauge.set(2.34);
         assert_eq!(gauge.value(), 2.34);
 
         assert_eq!(gauge.to_string(), "test_foo 2.34");
-        track_try_unwrap!(gauge.labels_mut().insert("bar", "baz").map(|_| ()));
+        gauge.labels_mut().insert(Label::new("bar", "baz").unwrap());
         assert_eq!(gauge.to_string(), r#"test_foo{bar="baz"} 2.34"#);
     }
 }

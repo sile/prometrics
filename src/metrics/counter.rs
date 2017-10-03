@@ -2,51 +2,88 @@ use std::fmt;
 use std::iter;
 use std::sync::{Arc, Weak};
 
-use {Result, Metric, Collect, CollectorRegistry};
+use {Result, ErrorKind, Metric, Collect, CollectorRegistry};
 use default_registry;
 use atomic::AtomicF64;
 use label::{Label, Labels, LabelsMut};
-use metric::{MetricName, Help};
+use metric::MetricName;
 use timestamp::{Timestamp, TimestampMut};
 
+/// `Counter` is a cumulative metric that represents a single numerical value that only ever goes up.
+///
+/// This is created via `CounterBuilder`.
+///
+/// Cloned counters share the same value.
+///
+/// # Examples
+///
+/// ```
+/// use prometrics::metrics::CounterBuilder;
+///
+/// let mut counter = CounterBuilder::new("foo_total").namespace("example").finish().unwrap();
+/// assert_eq!(counter.metric_name().to_string(), "example_foo_total");
+/// assert_eq!(counter.value(), 0.0);
+///
+/// counter.increment();
+/// assert_eq!(counter.value(), 1.0);
+/// ```
 #[derive(Debug, Clone)]
 pub struct Counter(Arc<Inner>);
 impl Counter {
-    pub fn name(&self) -> &str {
-        self.0.name.as_str()
+    /// Returns the name of this counter.
+    pub fn metric_name(&self) -> &MetricName {
+        &self.0.name
     }
+
+    /// Returns the help of this counter.
     pub fn help(&self) -> Option<&str> {
-        self.0.help.as_ref().map(|h| h.0.as_ref())
+        self.0.help.as_ref().map(|h| h.as_ref())
     }
+
+    /// Returns the labels of this counter.
     pub fn labels(&self) -> &Labels {
         &self.0.labels
     }
+
+    /// Returns the mutable labels of this counter.
     pub fn labels_mut(&mut self) -> LabelsMut {
-        LabelsMut::new(&self.0.labels)
+        LabelsMut::new(&self.0.labels, None)
     }
+
+    /// Returns the timestamp of this counter.
     pub fn timestamp(&self) -> &Timestamp {
         &self.0.timestamp
     }
+
+    /// Returns the mutable timestamp of this counter.
     pub fn timestamp_mut(&mut self) -> TimestampMut {
         TimestampMut(&self.0.timestamp)
     }
+
+    /// Returns the value of this counter.
     pub fn value(&self) -> f64 {
         self.0.value.get()
     }
-    pub fn inc(&mut self) {
+
+    /// Increments this counter.
+    pub fn increment(&mut self) {
         self.0.value.update(|v| v + 1.0);
     }
-    pub fn inc_by(&mut self, count: f64) {
-        assert!(count >= 0.0);
-        self.0.value.update(|v| v + count);
+
+    /// Adds `count` to this counter.
+    pub fn add(&mut self, count: f64) -> Result<()> {
+        track_assert!(count >= 0.0, ErrorKind::InvalidInput, "count={}", count);
+        Ok(self.0.value.update(|v| v + count))
     }
+
+    /// Returns a collector for this counter.
     pub fn collector(&self) -> CounterCollector {
         CounterCollector(Arc::downgrade(&self.0))
     }
 }
 impl fmt::Display for Counter {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.name())?;
+        write!(f, "{}", self.metric_name())?;
         if !self.labels().is_empty() {
             write!(f, "{}", self.labels())?;
         }
@@ -58,6 +95,7 @@ impl fmt::Display for Counter {
     }
 }
 
+/// `Counter` builder.
 #[derive(Debug)]
 pub struct CounterBuilder {
     namespace: Option<String>,
@@ -68,6 +106,7 @@ pub struct CounterBuilder {
     registries: Vec<CollectorRegistry>,
 }
 impl CounterBuilder {
+    /// Makes a builder for counters named `name`.
     pub fn new(name: &str) -> Self {
         CounterBuilder {
             namespace: None,
@@ -78,37 +117,52 @@ impl CounterBuilder {
             registries: Vec::new(),
         }
     }
+
+    /// Sets the namespace part of the metric name of this.
     pub fn namespace(&mut self, namespace: &str) -> &mut Self {
         self.namespace = Some(namespace.to_string());
         self
     }
+
+    /// Sets the subsystem part of the metric name of this.
     pub fn subsystem(&mut self, subsystem: &str) -> &mut Self {
         self.subsystem = Some(subsystem.to_string());
         self
     }
+
+    /// Sets the help of this.
     pub fn help(&mut self, help: &str) -> &mut Self {
         self.help = Some(help.to_string());
         self
     }
+
+    /// Adds a label.
+    ///
+    /// Note that `name` will be validated in the invocation of the `finish` method.
     pub fn label(&mut self, name: &str, value: &str) -> &mut Self {
         self.labels.retain(|l| l.0 != name);
         self.labels.push((name.to_string(), value.to_string()));
         self.labels.sort();
         self
     }
+
+    /// Adds a registry to which the resulting counters will be registered..
     pub fn registry(&mut self, registry: CollectorRegistry) -> &mut Self {
         self.registries.push(registry);
         self
     }
+
+    /// Adds the default registry.
     pub fn default_registry(&mut self) -> &mut Self {
         self.registry(default_registry())
     }
+
+    /// Builds a counter.
     pub fn finish(&self) -> Result<Counter> {
         let name = track!(MetricName::new(
             self.namespace.as_ref().map(AsRef::as_ref),
             self.subsystem.as_ref().map(AsRef::as_ref),
             &self.name,
-            Some("total"),
         ))?;
         let labels = track!(
             self.labels
@@ -119,19 +173,20 @@ impl CounterBuilder {
         let inner = Inner {
             name,
             labels: Labels::new(labels),
-            help: self.help.clone().map(Help),
+            help: self.help.clone(),
             timestamp: Timestamp::new(),
             value: AtomicF64::new(0.0),
         };
         let counter = Counter(Arc::new(inner));
-        for r in self.registries.iter() {
+        for r in &self.registries {
             track!(r.register(counter.collector()))?;
         }
         Ok(counter)
     }
 }
 
-#[derive(Debug, Clone)]
+/// `Collect` trait implmentation for `Counter`.
+#[derive(Debug)]
 pub struct CounterCollector(Weak<Inner>);
 impl Collect for CounterCollector {
     type Metrics = iter::Once<Metric>;
@@ -146,34 +201,37 @@ impl Collect for CounterCollector {
 struct Inner {
     name: MetricName,
     labels: Labels,
-    help: Option<Help>,
+    help: Option<String>,
     timestamp: Timestamp,
     value: AtomicF64,
 }
 
 #[cfg(test)]
 mod test {
+    use label::Label;
     use super::*;
 
     #[test]
     fn it_works() {
         let mut counter = track_try_unwrap!(
-            CounterBuilder::new("foo")
+            CounterBuilder::new("foo_total")
                 .namespace("test")
                 .subsystem("counter")
                 .finish()
         );
-        assert_eq!(counter.name(), "test_counter_foo_total");
+        assert_eq!(counter.metric_name().to_string(), "test_counter_foo_total");
         assert_eq!(counter.value(), 0.0);
 
-        counter.inc();
+        counter.increment();
         assert_eq!(counter.value(), 1.0);
 
-        counter.inc_by(3.45);
+        counter.add(3.45);
         assert_eq!(counter.value(), 4.45);
 
         assert_eq!(counter.to_string(), "test_counter_foo_total 4.45");
-        track_try_unwrap!(counter.labels_mut().insert("bar", "baz").map(|_| ()));
+        counter.labels_mut().insert(
+            Label::new("bar", "baz").unwrap(),
+        );
         assert_eq!(
             counter.to_string(),
             r#"test_counter_foo_total{bar="baz"} 4.45"#

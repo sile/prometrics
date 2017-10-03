@@ -1,11 +1,11 @@
-pub use self::atomic::Atomic64;
+pub use self::atomic64::Atomic64;
 
-pub type AtomicF64 = atomic::Atomic64<f64>;
-pub type AtomicU64 = atomic::Atomic64<u64>;
+pub type AtomicF64 = atomic64::Atomic64<f64>;
+pub type AtomicU64 = atomic64::Atomic64<u64>;
 
 // TODO: rename
 #[cfg(target_pointer_width = "64")]
-mod atomic {
+mod atomic64 {
     use std::marker::PhantomData;
     use std::mem;
     use std::sync::atomic::{AtomicUsize, Ordering};
@@ -42,7 +42,7 @@ mod atomic {
     }
 }
 #[cfg(not(target_pointer_width = "64"))]
-mod atomic {
+mod atomic64 {
     use std::sync::Mutex;
 
     #[derive(Debug)]
@@ -70,7 +70,7 @@ mod atomic {
         }
     }
 }
-impl<T: Default + Copy> atomic::Atomic64<T> {
+impl<T: Default + Copy> atomic64::Atomic64<T> {
     pub fn update<F>(&self, f: F)
     where
         F: FnOnce(T) -> T,
