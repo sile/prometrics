@@ -48,7 +48,7 @@ impl Histogram {
 
     /// Returns the mutable timestamp of this histogram.
     pub fn timetamp_mut(&mut self) -> TimestampMut {
-        TimestampMut(&self.0.timestamp)
+        TimestampMut::new(&self.0.timestamp)
     }
 
     /// Returns the buckets of this histogram.
@@ -73,7 +73,7 @@ impl Histogram {
 
     /// Observes a value.
     pub fn observe(&mut self, value: f64) {
-        assert_ne!(value, ::std::f64::NAN);
+        assert!(!value.is_nan());
         let i = self.0
             .buckets
             .binary_search_by(|b| {
@@ -272,7 +272,7 @@ impl HistogramBuilder {
             sum: AtomicF64::new(0.0),
         };
         let histogram = Histogram(Arc::new(inner));
-        for r in self.registries.iter() {
+        for r in &self.registries {
             track!(r.register(histogram.collector()))?;
         }
         Ok(histogram)

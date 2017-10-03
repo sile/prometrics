@@ -1,7 +1,8 @@
 use std::sync::Mutex;
 use std::sync::mpsc;
+use trackable::error::ErrorKindExt;
 
-use {Result, Error, Collect, Metric};
+use {Result, ErrorKind, Collect, Metric};
 use metric::MetricFamily;
 
 lazy_static! {
@@ -43,7 +44,10 @@ impl CollectorRegistry {
         } else {
             false
         };
-        track!(self.tx.send(Collector(Box::new(f))).map_err(Error::from))
+        track!(self.tx.send(Collector(Box::new(f))).map_err(|e| {
+            ErrorKind::Other.cause(e.to_string())
+        }))?;
+        Ok(())
     }
 }
 
@@ -81,7 +85,7 @@ impl MetricsGatherer {
         metrics.sort_by(|a, b| (a.name(), a.kind()).cmp(&(b.name(), b.kind())));
 
         let mut families: Vec<MetricFamily> = Vec::new();
-        for metric in metrics.into_iter() {
+        for metric in metrics {
             if !families.last().map_or(false, |f| f.same_family(&metric)) {
                 families.push(MetricFamily::new(metric));
             } else {

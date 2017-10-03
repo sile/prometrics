@@ -2,6 +2,7 @@ pub use self::atomic64::Atomic64;
 
 pub type AtomicF64 = atomic64::Atomic64<f64>;
 pub type AtomicU64 = atomic64::Atomic64<u64>;
+pub type AtomicI64 = atomic64::Atomic64<i64>;
 
 // TODO: rename
 #[cfg(target_pointer_width = "64")]

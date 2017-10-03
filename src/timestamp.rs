@@ -1,29 +1,35 @@
+//! Unix timestamp.
 use std;
 use std::ops::Deref;
 use std::time::{SystemTime, Duration, UNIX_EPOCH};
 
-use atomic;
+use atomic::AtomicI64;
 
+const NO_VALUE: i64 = std::i64::MIN;
+
+/// Unix timestamp in seconds.
 #[derive(Debug)]
-pub struct Timestamp(atomic::Atomic64<i64>);
+pub struct Timestamp(AtomicI64);
 impl Timestamp {
-    pub fn new() -> Self {
-        Timestamp(atomic::Atomic64::new(std::i64::MIN))
-    }
+    /// Returns the value of this timestamp.
     pub fn get(&self) -> Option<i64> {
         let v = self.0.get();
-        if v == std::i64::MIN { None } else { Some(v) }
+        if v == NO_VALUE { None } else { Some(v) }
+    }
+
+    pub(crate) fn new() -> Self {
+        Timestamp(AtomicI64::new(NO_VALUE))
     }
     fn clear(&self) {
-        self.0.set(std::i64::MIN);
+        self.0.set(NO_VALUE);
     }
     fn set(&self, timestamp: i64) {
-        assert_ne!(timestamp, std::i64::MIN);
+        assert_ne!(timestamp, NO_VALUE);
         self.0.set(timestamp);
     }
     fn set_time(&self, time: SystemTime) {
         fn to_millis(d: Duration) -> i64 {
-            d.as_secs() as i64 * 1000 + d.subsec_nanos() as i64 / 1000 / 1000
+            d.as_secs() as i64 * 1000 + i64::from(d.subsec_nanos()) / 1000 / 1000
         }
         if let Ok(duration) = time.duration_since(UNIX_EPOCH) {
             self.set(to_millis(duration));
@@ -34,6 +40,41 @@ impl Timestamp {
     }
     fn set_now(&self) {
         self.set_time(SystemTime::now());
+    }
+}
+
+/// Mutable variant of `Timestamp`.
+#[derive(Debug)]
+pub struct TimestampMut<'a>(&'a Timestamp);
+impl<'a> TimestampMut<'a> {
+    /// Sets the value of this timestamp to `timestamp`.
+    pub fn set(&mut self, timestamp: i64) {
+        self.0.set(timestamp)
+    }
+
+    /// Sets the value of this timestamp to the current unixtime in seconds.
+    pub fn set_now(&mut self) {
+        self.0.set_now()
+    }
+
+    /// Sets the value of this timestamp to `time`.
+    pub fn set_time(&mut self, time: SystemTime) {
+        self.0.set_time(time)
+    }
+
+    /// Clears the value of this timestamp.
+    pub fn clear(&mut self) {
+        self.0.clear()
+    }
+
+    pub(crate) fn new(inner: &'a Timestamp) -> Self {
+        TimestampMut(inner)
+    }
+}
+impl<'a> Deref for TimestampMut<'a> {
+    type Target = Timestamp;
+    fn deref(&self) -> &Self::Target {
+        self.0
     }
 }
 
@@ -48,28 +89,5 @@ pub(crate) fn now_unixtime_seconds() -> f64 {
 }
 
 pub(crate) fn duration_to_unixtime_seconds(d: Duration) -> f64 {
-    d.as_secs() as f64 + (d.subsec_nanos() as f64) / 1000_000_000.0
-}
-
-#[derive(Debug)]
-pub struct TimestampMut<'a>(pub(crate) &'a Timestamp); // TODO
-impl<'a> TimestampMut<'a> {
-    pub fn clear(&mut self) {
-        self.0.clear()
-    }
-    pub fn set(&mut self, timestamp: i64) {
-        self.0.set(timestamp)
-    }
-    pub fn set_time(&mut self, time: SystemTime) {
-        self.0.set_time(time)
-    }
-    pub fn set_now(&mut self) {
-        self.0.set_now()
-    }
-}
-impl<'a> Deref for TimestampMut<'a> {
-    type Target = Timestamp;
-    fn deref(&self) -> &Self::Target {
-        self.0
-    }
+    d.as_secs() as f64 + f64::from(d.subsec_nanos()) / 1000_000_000.0
 }

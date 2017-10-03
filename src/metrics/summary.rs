@@ -47,7 +47,7 @@ impl Summary {
 
     /// Returns the mutable timestamp of this summary.
     pub fn timetamp_mut(&mut self) -> TimestampMut {
-        TimestampMut(&self.0.timestamp)
+        TimestampMut::new(&self.0.timestamp)
     }
 
     /// Returns the total observation count.
@@ -60,8 +60,8 @@ impl Summary {
         self.0.sum.get()
     }
 
-    /// Calculates the quantiles of this summary.
-    pub fn quantiles(&self) -> Vec<Quantile> {
+    /// Calculates and returns the quantile-value pairs of this summary.
+    pub fn quantiles(&self) -> Vec<(Quantile, f64)> {
         let mut samples = self.with_current_samples(|_, samples| {
             samples
                 .iter()
@@ -69,7 +69,7 @@ impl Summary {
                 .filter(|v| !v.is_nan())
                 .collect::<Vec<_>>()
         });
-        samples.sort_by(|a, b| a.partial_cmp(&b).expect("Never fails"));
+        samples.sort_by(|a, b| a.partial_cmp(b).expect("Never fails"));
 
         if samples.is_empty() {
             return Vec::new();
@@ -78,9 +78,9 @@ impl Summary {
         self.0
             .quantiles
             .iter()
-            .map(|quantile| {
-                let index = cmp::min(count, (quantile.quantile() * count as f64).round() as usize);
-                quantile.with_value(samples[index])
+            .map(|&quantile| {
+                let index = cmp::min(count, (quantile.as_f64() * count as f64).round() as usize);
+                (quantile, samples[index])
             })
             .collect()
     }
@@ -142,17 +142,17 @@ impl fmt::Display for Summary {
             "".to_string()
         };
 
-        for quantile in self.quantiles() {
+        for (quantile, value) in self.quantiles() {
             write!(
                 f,
                 "{}{{quantile=\"{}\"",
                 self.metric_name(),
-                quantile.quantile()
+                quantile.as_f64(),
             )?;
             for label in self.labels().iter() {
                 write!(f, ",{}={:?}", label.name(), label.value())?;
             }
-            writeln!(f, "}} {}{}", quantile.value(), timestamp)?;
+            writeln!(f, "}} {}{}", value, timestamp)?;
         }
         writeln!(
             f,
@@ -265,27 +265,25 @@ impl SummaryBuilder {
         let mut quantiles = track!(
             self.quantiles
                 .iter()
-                .map(|quantile| track!(Quantile::new(*quantile, 0.0)))
+                .map(|quantile| track!(Quantile::new(*quantile)))
                 .collect::<Result<Vec<_>>>()
         )?;
         quantiles.sort_by(|a, b| {
-            a.quantile().partial_cmp(&b.quantile()).expect(
-                "Never fails",
-            )
+            a.as_f64().partial_cmp(&b.as_f64()).expect("Never fails")
         });
         let inner = Inner {
             quantile_name,
             labels: Labels::new(labels),
             help: self.help.clone(),
             timestamp: Timestamp::new(),
-            window: self.window.clone(),
+            window: self.window,
             quantiles,
             samples: Mutex::new(VecDeque::new()),
             count: AtomicU64::new(0),
             sum: AtomicF64::new(0.0),
         };
         let summary = Summary(Arc::new(inner));
-        for r in self.registries.iter() {
+        for r in &self.registries {
             track!(r.register(summary.collector()))?;
         }
         Ok(summary)

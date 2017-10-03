@@ -57,7 +57,7 @@ impl Counter {
 
     /// Returns the mutable timestamp of this counter.
     pub fn timestamp_mut(&mut self) -> TimestampMut {
-        TimestampMut(&self.0.timestamp)
+        TimestampMut::new(&self.0.timestamp)
     }
 
     /// Returns the value of this counter.
