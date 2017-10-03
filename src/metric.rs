@@ -38,6 +38,26 @@ impl Metric {
         }
     }
 }
+impl From<Counter> for Metric {
+    fn from(f: Counter) -> Self {
+        Metric::Counter(f)
+    }
+}
+impl From<Gauge> for Metric {
+    fn from(f: Gauge) -> Self {
+        Metric::Gauge(f)
+    }
+}
+impl From<Histogram> for Metric {
+    fn from(f: Histogram) -> Self {
+        Metric::Histogram(f)
+    }
+}
+impl From<Summary> for Metric {
+    fn from(f: Summary) -> Self {
+        Metric::Summary(f)
+    }
+}
 
 /// Metric name.
 ///
