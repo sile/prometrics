@@ -4,14 +4,12 @@ pub type AtomicF64 = atomic64::Atomic64<f64>;
 pub type AtomicU64 = atomic64::Atomic64<u64>;
 pub type AtomicI64 = atomic64::Atomic64<i64>;
 
-// TODO: rename
 #[cfg(target_pointer_width = "64")]
 mod atomic64 {
     use std::marker::PhantomData;
     use std::mem;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
-    // TODO: impl original Debug
     #[derive(Debug)]
     pub struct Atomic64<T> {
         value: AtomicUsize,
