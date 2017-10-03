@@ -1,5 +1,7 @@
 //! Client library for exposing [prometheus][prometheus] metrics.
 //!
+//! Currently this crate only support text format for exposing metrics.
+//!
 //! [prometheus]: https://prometheus.io/
 //!
 //! # References
@@ -17,11 +19,11 @@ extern crate trackable;
 
 pub use collect::Collect;
 pub use error::{Error, ErrorKind};
-pub use metric::{Metric, MetricFamily, MetricKind, MetricName};
 pub use registry::{default_registry, default_gatherer, CollectorRegistry, MetricsGatherer};
 
 pub mod bucket;
 pub mod label;
+pub mod metric;
 pub mod metrics;
 pub mod quantile;
 pub mod timestamp;
@@ -29,7 +31,6 @@ pub mod timestamp;
 mod atomic;
 mod collect;
 mod error;
-mod metric;
 mod registry;
 
 /// This crate specific `Result` type.

@@ -7,7 +7,7 @@ use atomic::AtomicI64;
 
 const NO_VALUE: i64 = std::i64::MIN;
 
-/// Unix timestamp in seconds.
+/// Unix timestamp in milliseconds.
 #[derive(Debug)]
 pub struct Timestamp(AtomicI64);
 impl Timestamp {
@@ -52,7 +52,7 @@ impl<'a> TimestampMut<'a> {
         self.0.set(timestamp)
     }
 
-    /// Sets the value of this timestamp to the current unixtime in seconds.
+    /// Sets the value of this timestamp to the current unixtime in milliseconds.
     pub fn set_now(&mut self) {
         self.0.set_now()
     }

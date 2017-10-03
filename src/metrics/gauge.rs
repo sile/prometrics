@@ -3,11 +3,11 @@ use std::iter;
 use std::sync::{Arc, Weak};
 use std::time::Instant;
 
-use {Result, Metric, Collect, CollectorRegistry};
+use {Result, Collect, CollectorRegistry};
 use default_registry;
 use atomic::AtomicF64;
 use label::{Label, Labels, LabelsMut};
-use metric::MetricName;
+use metric::{Metric, MetricName, MetricValue};
 use timestamp::{self, Timestamp, TimestampMut};
 
 /// `Gauge` is a metric that represents a single numerical value that can arbitrarily go up and down.
@@ -132,7 +132,7 @@ impl fmt::Display for Gauge {
         if !self.labels().is_empty() {
             write!(f, "{}", self.labels())?;
         }
-        write!(f, " {}", self.value())?;
+        write!(f, " {}", MetricValue(self.value()))?;
         if let Some(timestamp) = self.timestamp().get() {
             write!(f, " {}", timestamp)?;
         }
@@ -274,7 +274,7 @@ mod test {
         assert_eq!(gauge.value(), 2.34);
 
         assert_eq!(gauge.to_string(), "test_foo 2.34");
-        gauge.labels_mut().insert(Label::new("bar", "baz").unwrap());
+        gauge.labels_mut().insert("bar", "baz").unwrap();
         assert_eq!(gauge.to_string(), r#"test_foo{bar="baz"} 2.34"#);
     }
 }

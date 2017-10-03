@@ -93,7 +93,19 @@ impl Label {
 }
 impl fmt::Display for Label {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}={:?}", self.name, self.value)
+        // > `label_value` can be any sequence of UTF-8 characters,
+        // > but the backslash, the double-quote, and the line-feed
+        // > characters have to be escaped as `\\`, `\"`, and `\n`, respectively.
+        write!(f, "{}=\"", self.name)?;
+        for c in self.value.chars() {
+            match c {
+                '\\' => write!(f, "\\\\")?,
+                '\n' => write!(f, "\\\\n")?,
+                '"' => write!(f, "\\\"")?,
+                _ => write!(f, "{}", c)?,
+            }
+        }
+        write!(f, "\"")
     }
 }
 

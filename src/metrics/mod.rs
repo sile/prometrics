@@ -1,4 +1,4 @@
-//! Metrics and related types.
+//! Concrete metrics.
 //!
 //! # References
 //!

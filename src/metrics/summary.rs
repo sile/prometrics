@@ -5,11 +5,11 @@ use std::iter;
 use std::sync::{Arc, Weak, Mutex};
 use std::time::{Instant, Duration, SystemTime};
 
-use {Result, ErrorKind, Metric, Collect, CollectorRegistry};
+use {Result, ErrorKind, Collect, CollectorRegistry};
 use default_registry;
 use atomic::{AtomicF64, AtomicU64};
 use label::{Label, Labels, LabelsMut};
-use metric::MetricName;
+use metric::{Metric, MetricName, MetricValue};
 use quantile::Quantile;
 use timestamp::{self, Timestamp, TimestampMut};
 
@@ -79,7 +79,7 @@ impl Summary {
             .quantiles
             .iter()
             .map(|&quantile| {
-                let index = cmp::min(count, (quantile.as_f64() * count as f64).round() as usize);
+                let index = cmp::min(count, (quantile.as_f64() * count as f64).floor() as usize);
                 (quantile, samples[index])
             })
             .collect()
@@ -147,19 +147,19 @@ impl fmt::Display for Summary {
                 f,
                 "{}{{quantile=\"{}\"",
                 self.metric_name(),
-                quantile.as_f64(),
+                quantile.as_f64()
             )?;
             for label in self.labels().iter() {
                 write!(f, ",{}={:?}", label.name(), label.value())?;
             }
-            writeln!(f, "}} {}{}", value, timestamp)?;
+            writeln!(f, "}} {}{}", MetricValue(value), timestamp)?;
         }
         writeln!(
             f,
             "{}_sum{} {}{}",
             self.metric_name(),
             labels,
-            self.sum(),
+            MetricValue(self.sum()),
             timestamp
         )?;
         write!(
@@ -338,7 +338,11 @@ mod test {
         summary.observe(10.0);
         summary.observe(33.0);
         assert_eq!(
-            summary.quantiles(),
+            summary
+                .quantiles()
+                .into_iter()
+                .map(|(q, v)| (q.as_f64(), v))
+                .collect::<Vec<_>>(),
             [(0.25, 10.0), (0.50, 12.0), (0.75, 33.0)]
         );
         assert_eq!(summary.count(), 5);

@@ -1,4 +1,4 @@
-use Metric;
+use metric::Metric;
 
 /// This trait allows for collecting metrics.
 pub trait Collect {

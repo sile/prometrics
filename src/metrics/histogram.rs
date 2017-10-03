@@ -1,14 +1,15 @@
+use std;
 use std::fmt;
 use std::iter;
 use std::sync::{Arc, Weak};
 use std::time::Instant;
 
-use {Result, ErrorKind, Metric, Collect, CollectorRegistry};
+use {Result, ErrorKind, Collect, CollectorRegistry};
 use default_registry;
 use atomic::{AtomicF64, AtomicU64};
 use bucket::{Bucket, CumulativeBuckets};
 use label::{Label, Labels, LabelsMut};
-use metric::MetricName;
+use metric::{Metric, MetricName, MetricValue};
 use timestamp::{self, Timestamp, TimestampMut};
 
 /// `Histogram` samples observations (usually things like request durations or response sizes) and
@@ -115,24 +116,24 @@ impl fmt::Display for Histogram {
             "".to_string()
         };
 
-        for bucket in self.buckets() {
+        for bucket in self.cumulative_buckets() {
             write!(
                 f,
                 "{}_bucket{{le=\"{}\"",
                 self.metric_name(),
-                bucket.upper_bound()
+                MetricValue(bucket.upper_bound())
             )?;
             for label in self.labels().iter() {
                 write!(f, ",{}={:?}", label.name(), label.value())?;
             }
-            writeln!(f, "}} {}{}", bucket.count(), timestamp)?;
+            writeln!(f, "}} {}{}", bucket.cumulative_count(), timestamp)?;
         }
         writeln!(
             f,
             "{}_sum{} {}{}",
             self.metric_name(),
             labels,
-            self.sum(),
+            MetricValue(self.sum()),
             timestamp
         )?;
         write!(
@@ -167,7 +168,7 @@ impl HistogramBuilder {
             name: name.to_string(),
             help: None,
             labels: Vec::new(),
-            bucket_upper_bounds: Vec::new(),
+            bucket_upper_bounds: vec![std::f64::INFINITY],
             registries: Vec::new(),
         }
     }
@@ -304,6 +305,7 @@ struct Inner {
 
 #[cfg(test)]
 mod test {
+    use std::f64::INFINITY;
     use super::*;
 
     #[test]
@@ -321,7 +323,14 @@ mod test {
                 .cumulative_buckets()
                 .map(|b| (b.upper_bound(), b.cumulative_count()))
                 .collect::<Vec<_>>(),
-            [(0.0, 0), (10.0, 2), (20.0, 3), (30.0, 3), (40.0, 3)]
+            [
+                (0.0, 0),
+                (10.0, 2),
+                (20.0, 3),
+                (30.0, 3),
+                (40.0, 3),
+                (INFINITY, 4),
+            ]
         );
         assert_eq!(histogram.count(), 4);
         assert_eq!(histogram.sum(), 79.1);
@@ -330,9 +339,10 @@ mod test {
             histogram.to_string(),
             r#"foo_bucket{le="0"} 0
 foo_bucket{le="10"} 2
-foo_bucket{le="20"} 1
-foo_bucket{le="30"} 0
-foo_bucket{le="40"} 0
+foo_bucket{le="20"} 3
+foo_bucket{le="30"} 3
+foo_bucket{le="40"} 3
+foo_bucket{le="+Inf"} 4
 foo_sum 79.1
 foo_count 4"#
         );

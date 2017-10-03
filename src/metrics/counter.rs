@@ -2,11 +2,11 @@ use std::fmt;
 use std::iter;
 use std::sync::{Arc, Weak};
 
-use {Result, ErrorKind, Metric, Collect, CollectorRegistry};
+use {Result, ErrorKind, Collect, CollectorRegistry};
 use default_registry;
 use atomic::AtomicF64;
 use label::{Label, Labels, LabelsMut};
-use metric::MetricName;
+use metric::{Metric, MetricName, MetricValue};
 use timestamp::{Timestamp, TimestampMut};
 
 /// `Counter` is a cumulative metric that represents a single numerical value that only ever goes up.
@@ -87,7 +87,7 @@ impl fmt::Display for Counter {
         if !self.labels().is_empty() {
             write!(f, "{}", self.labels())?;
         }
-        write!(f, " {}", self.value())?;
+        write!(f, " {}", MetricValue(self.value()))?;
         if let Some(timestamp) = self.timestamp().get() {
             write!(f, " {}", timestamp)?;
         }
@@ -229,9 +229,7 @@ mod test {
         assert_eq!(counter.value(), 4.45);
 
         assert_eq!(counter.to_string(), "test_counter_foo_total 4.45");
-        counter.labels_mut().insert(
-            Label::new("bar", "baz").unwrap(),
-        );
+        counter.labels_mut().insert("bar", "baz").unwrap();
         assert_eq!(
             counter.to_string(),
             r#"test_counter_foo_total{bar="baz"} 4.45"#

@@ -2,8 +2,8 @@ use std::sync::Mutex;
 use std::sync::mpsc;
 use trackable::error::ErrorKindExt;
 
-use {Result, ErrorKind, Collect, Metric};
-use metric::MetricFamily;
+use {Result, ErrorKind, Collect};
+use metric::{Metric, MetricFamily};
 
 lazy_static! {
     static ref DEFAULT_GATHERER: Mutex<MetricsGatherer> = Mutex::new(MetricsGatherer::new());
