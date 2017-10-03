@@ -266,7 +266,7 @@ impl fmt::Display for MetricFamily {
             writeln!(f, "")?;
         }
         writeln!(f, "# TYPE {} {}", self.name(), self.kind())?;
-        writeln!(f, "{}", self.metrics)?;
+        write!(f, "{}", self.metrics)?;
         Ok(())
     }
 }

@@ -1,3 +1,4 @@
+use std::fmt;
 use std::sync::Mutex;
 use std::sync::mpsc;
 use trackable::error::ErrorKindExt;
@@ -6,34 +7,33 @@ use {Result, ErrorKind, Collect};
 use metric::{Metric, MetricFamily};
 
 lazy_static! {
-    static ref DEFAULT_GATHERER: Mutex<MetricsGatherer> = Mutex::new(MetricsGatherer::new());
+    static ref DEFAULT_GATHERER: Mutex<Gatherer> = Mutex::new(Gatherer::new());
 }
 
-pub fn default_gatherer() -> &'static Mutex<MetricsGatherer> {
+/// Returns the global default `Gatherer`.
+pub fn default_gatherer() -> &'static Mutex<Gatherer> {
     &DEFAULT_GATHERER
 }
 
-pub fn default_registry() -> CollectorRegistry {
+/// Returns the global default `Registry`.
+pub fn default_registry() -> Registry {
     if let Ok(gatherer) = default_gatherer().lock() {
         gatherer.registry()
     } else {
         let (tx, _) = mpsc::channel();
-        CollectorRegistry { tx }
+        Registry { tx }
     }
 }
 
-struct Collector(Box<FnMut(&mut Vec<Metric>) -> bool + Send + 'static>);
-impl Collector {
-    fn collect(&mut self, metrics: &mut Vec<Metric>) -> bool {
-        (self.0)(metrics)
-    }
-}
-
+/// Collector registry.
 #[derive(Debug, Clone)]
-pub struct CollectorRegistry {
+pub struct Registry {
     tx: mpsc::Sender<Collector>,
 }
-impl CollectorRegistry {
+impl Registry {
+    /// Registers a collector.
+    ///
+    /// If `collector.collect()` returns `None`, it will be deregistered from this.
     pub fn register<C>(&self, mut collector: C) -> Result<()>
     where
         C: Collect + Send + 'static,
@@ -51,23 +51,45 @@ impl CollectorRegistry {
     }
 }
 
-pub struct MetricsGatherer {
+struct Collector(Box<FnMut(&mut Vec<Metric>) -> bool + Send + 'static>);
+impl Collector {
+    fn collect(&mut self, metrics: &mut Vec<Metric>) -> bool {
+        (self.0)(metrics)
+    }
+}
+impl fmt::Debug for Collector {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Collector(_)")
+    }
+}
+
+/// Metrics gatherer.
+///
+/// This can gather metrics that registered to registries which associated with the gatherer.
+#[derive(Debug)]
+pub struct Gatherer {
     tx: mpsc::Sender<Collector>,
     rx: mpsc::Receiver<Collector>,
     collectors: Vec<Collector>,
 }
-impl MetricsGatherer {
+#[cfg_attr(feature = "cargo-clippy", allow(new_without_default))]
+impl Gatherer {
+    /// Makes a new `Gatherer` instance.
     pub fn new() -> Self {
         let (tx, rx) = mpsc::channel();
-        MetricsGatherer {
+        Gatherer {
             tx,
             rx,
             collectors: Vec::new(),
         }
     }
-    pub fn registry(&self) -> CollectorRegistry {
-        CollectorRegistry { tx: self.tx.clone() }
+
+    /// Returns a `Registry` associated with this gatherer.
+    pub fn registry(&self) -> Registry {
+        Registry { tx: self.tx.clone() }
     }
+
+    /// Gathers metrics.
     pub fn gather(&mut self) -> Vec<MetricFamily> {
         while let Ok(collector) = self.rx.try_recv() {
             self.collectors.push(collector);

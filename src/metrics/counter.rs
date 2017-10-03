@@ -2,7 +2,7 @@ use std::fmt;
 use std::iter;
 use std::sync::{Arc, Weak};
 
-use {Result, ErrorKind, Collect, CollectorRegistry};
+use {Result, ErrorKind, Collect, Registry};
 use default_registry;
 use atomic::AtomicF64;
 use label::{Label, Labels, LabelsMut};
@@ -10,8 +10,6 @@ use metric::{Metric, MetricName, MetricValue};
 use timestamp::{Timestamp, TimestampMut};
 
 /// `Counter` is a cumulative metric that represents a single numerical value that only ever goes up.
-///
-/// This is created via `CounterBuilder`.
 ///
 /// Cloned counters share the same value.
 ///
@@ -30,6 +28,13 @@ use timestamp::{Timestamp, TimestampMut};
 #[derive(Debug, Clone)]
 pub struct Counter(Arc<Inner>);
 impl Counter {
+    /// Makes a new `Counter` instance.
+    ///
+    /// Note that it is recommended to create this via `CounterBuilder`.
+    pub fn new(name: &str) -> Result<Self> {
+        CounterBuilder::new(name).finish()
+    }
+
     /// Returns the name of this counter.
     pub fn metric_name(&self) -> &MetricName {
         &self.0.name
@@ -103,7 +108,7 @@ pub struct CounterBuilder {
     name: String,
     help: Option<String>,
     labels: Vec<(String, String)>,
-    registries: Vec<CollectorRegistry>,
+    registries: Vec<Registry>,
 }
 impl CounterBuilder {
     /// Makes a builder for counters named `name`.
@@ -147,7 +152,7 @@ impl CounterBuilder {
     }
 
     /// Adds a registry to which the resulting counters will be registered..
-    pub fn registry(&mut self, registry: CollectorRegistry) -> &mut Self {
+    pub fn registry(&mut self, registry: Registry) -> &mut Self {
         self.registries.push(registry);
         self
     }
@@ -208,7 +213,6 @@ struct Inner {
 
 #[cfg(test)]
 mod test {
-    use label::Label;
     use super::*;
 
     #[test]
@@ -225,7 +229,7 @@ mod test {
         counter.increment();
         assert_eq!(counter.value(), 1.0);
 
-        counter.add(3.45);
+        counter.add(3.45).unwrap();
         assert_eq!(counter.value(), 4.45);
 
         assert_eq!(counter.to_string(), "test_counter_foo_total 4.45");

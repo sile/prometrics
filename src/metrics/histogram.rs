@@ -4,7 +4,7 @@ use std::iter;
 use std::sync::{Arc, Weak};
 use std::time::Instant;
 
-use {Result, ErrorKind, Collect, CollectorRegistry};
+use {Result, ErrorKind, Collect, Registry};
 use default_registry;
 use atomic::{AtomicF64, AtomicU64};
 use bucket::{Bucket, CumulativeBuckets};
@@ -16,12 +16,17 @@ use timestamp::{self, Timestamp, TimestampMut};
 /// counts them in configurable buckets.
 /// It also provides a sum of all observed values.
 ///
-/// This is created via `HistogramBuilder`.
-///
 /// Cloned histograms share the same buckets.
 #[derive(Debug, Clone)]
 pub struct Histogram(Arc<Inner>);
 impl Histogram {
+    /// Makes a new `Histogram` instance.
+    ///
+    /// Note that it is recommended to create this via `HistogramBuilder`.
+    pub fn new(name: &str) -> Result<Self> {
+        HistogramBuilder::new(name).finish()
+    }
+
     /// Returns the name of this histogram.
     pub fn metric_name(&self) -> &MetricName {
         &self.0.bucket_name
@@ -157,7 +162,7 @@ pub struct HistogramBuilder {
     help: Option<String>,
     labels: Vec<(String, String)>,
     bucket_upper_bounds: Vec<f64>,
-    registries: Vec<CollectorRegistry>,
+    registries: Vec<Registry>,
 }
 impl HistogramBuilder {
     /// Makes a builder for histograms named `name`.
@@ -222,7 +227,7 @@ impl HistogramBuilder {
     }
 
     /// Adds a registry to which the resulting histograms will be registered..
-    pub fn registry(&mut self, registry: CollectorRegistry) -> &mut Self {
+    pub fn registry(&mut self, registry: Registry) -> &mut Self {
         self.registries.push(registry);
         self
     }

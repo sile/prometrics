@@ -5,7 +5,7 @@ use std::iter;
 use std::sync::{Arc, Weak, Mutex};
 use std::time::{Instant, Duration, SystemTime};
 
-use {Result, ErrorKind, Collect, CollectorRegistry};
+use {Result, ErrorKind, Collect, Registry};
 use default_registry;
 use atomic::{AtomicF64, AtomicU64};
 use label::{Label, Labels, LabelsMut};
@@ -17,9 +17,18 @@ use timestamp::{self, Timestamp, TimestampMut};
 ///
 /// It provides a total count of observations and a sum of all observed values,
 /// and it calculates configurable quantiles over a sliding time window.
+///
+/// Cloned summaries share the same buckets.
 #[derive(Debug, Clone)]
 pub struct Summary(Arc<Inner>);
 impl Summary {
+    /// Makes a new `Summary` instance.
+    ///
+    /// Note that it is recommended to create this via `SummaryBuilder`.
+    pub fn new(name: &str, window: Duration) -> Result<Self> {
+        SummaryBuilder::new(name, window).finish()
+    }
+
     /// Returns the name of this summary.
     pub fn metric_name(&self) -> &MetricName {
         &self.0.quantile_name
@@ -184,7 +193,7 @@ pub struct SummaryBuilder {
     labels: Vec<(String, String)>,
     window: Duration,
     quantiles: Vec<f64>,
-    registries: Vec<CollectorRegistry>,
+    registries: Vec<Registry>,
 }
 impl SummaryBuilder {
     /// Makes a builder for summary named `name`.
@@ -232,7 +241,7 @@ impl SummaryBuilder {
     }
 
     /// Adds a registry to which the resulting histograms will be registered..
-    pub fn registry(&mut self, registry: CollectorRegistry) -> &mut Self {
+    pub fn registry(&mut self, registry: Registry) -> &mut Self {
         self.registries.push(registry);
         self
     }

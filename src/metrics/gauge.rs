@@ -3,7 +3,7 @@ use std::iter;
 use std::sync::{Arc, Weak};
 use std::time::Instant;
 
-use {Result, Collect, CollectorRegistry};
+use {Result, Collect, Registry};
 use default_registry;
 use atomic::AtomicF64;
 use label::{Label, Labels, LabelsMut};
@@ -12,12 +12,17 @@ use timestamp::{self, Timestamp, TimestampMut};
 
 /// `Gauge` is a metric that represents a single numerical value that can arbitrarily go up and down.
 ///
-/// This is created via `GaugeBuilder`.
-///
 /// Cloned gauges share the same value.
 #[derive(Debug, Clone)]
 pub struct Gauge(Arc<Inner>);
 impl Gauge {
+    /// Makes a new `Gauge` instance.
+    ///
+    /// Note that it is recommended to create this via `GaugeBuilder`.
+    pub fn new(name: &str) -> Result<Self> {
+        GaugeBuilder::new(name).finish()
+    }
+
     /// Returns the name of this gauge.
     pub fn metric_name(&self) -> &MetricName {
         &self.0.name
@@ -149,7 +154,7 @@ pub struct GaugeBuilder {
     help: Option<String>,
     labels: Vec<(String, String)>,
     initial_value: f64,
-    registries: Vec<CollectorRegistry>,
+    registries: Vec<Registry>,
 }
 impl GaugeBuilder {
     /// Makes a builder for gauges named `name`.
@@ -194,7 +199,7 @@ impl GaugeBuilder {
     }
 
     /// Adds a registry to which the resulting gauges will be registered..
-    pub fn registry(&mut self, registry: CollectorRegistry) -> &mut Self {
+    pub fn registry(&mut self, registry: Registry) -> &mut Self {
         self.registries.push(registry);
         self
     }
@@ -261,7 +266,6 @@ struct Inner {
 
 #[cfg(test)]
 mod test {
-    use label::Label;
     use super::*;
 
     #[test]
