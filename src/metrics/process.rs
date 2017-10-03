@@ -6,8 +6,10 @@ use procinfo;
 
 use Collect;
 use metric::Metric;
+#[cfg(target_os = "linux")]
 use metrics::{CounterBuilder, GaugeBuilder};
 
+#[cfg(target_os = "linux")]
 lazy_static! {
     static ref CLK_TCK: f64 = { unsafe { libc::sysconf(libc::_SC_CLK_TCK) as f64 } };
     static ref PAGESIZE: usize = { unsafe { libc::sysconf(libc::_SC_PAGESIZE) as usize } };
@@ -22,6 +24,19 @@ lazy_static! {
 /// # Reference
 ///
 /// - [process metrics](https://prometheus.io/docs/instrumenting/writing_clientlibs/#process-metrics)
+///
+/// # Examples
+///
+/// ```
+/// use prometrics::{default_gatherer, default_registry};
+/// use prometrics::metrics::ProcessMetricsCollector;
+///
+/// // Register
+/// default_registry().register(ProcessMetricsCollector::new());
+///
+/// // Gather
+/// let _metrics = default_gatherer().lock().unwrap().gather();
+/// ```
 #[derive(Debug, Default)]
 pub struct ProcessMetricsCollector(());
 impl ProcessMetricsCollector {
@@ -71,6 +86,7 @@ impl Collect for ProcessMetricsCollector {
     }
 }
 
+#[cfg(target_os = "linux")]
 fn counter(name: &str, value: f64) -> Metric {
     let mut counter = CounterBuilder::new(name)
         .namespace("process")
@@ -80,6 +96,7 @@ fn counter(name: &str, value: f64) -> Metric {
     counter.into()
 }
 
+#[cfg(target_os = "linux")]
 fn gauge(name: &str, value: f64) -> Metric {
     let mut gauge = GaugeBuilder::new(name)
         .namespace("process")
