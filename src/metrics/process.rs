@@ -1,3 +1,4 @@
+use std::time::{SystemTime, UNIX_EPOCH};
 use std::vec;
 #[cfg(target_os = "linux")]
 use libc;
@@ -57,21 +58,18 @@ impl Collect for ProcessMetricsCollector {
             }
         }
         if let Ok(status) = procinfo::pid::status_self() {
-            metrics.push(gauge("open_fds", status.fd_allocated as f64));
+            metrics.push(gauge("open_fds", f64::from(status.fd_allocated)));
         }
         if let Ok(stat) = procinfo::pid::stat_self() {
             metrics.push(counter(
                 "cpu_seconds_total",
                 (stat.utime + stat.stime) as f64 / *CLK_TCK,
             ));
-            metrics.push(gauge(
-                "start_time_seconds",
-                stat.start_time as f64 / *CLK_TCK,
-            ));
-            metrics.push(gauge(
-                "virtual_memory_bytes",
-                (stat.vsize * *PAGESIZE) as f64,
-            ));
+            if let Ok(start_time) = SystemTime::now().duration_since(UNIX_EPOCH) {
+                metrics.push(gauge("start_time_seconds", start_time.as_secs() as f64));
+            }
+            metrics.push(gauge("threads_total", f64::from(stat.num_threads)));
+            metrics.push(gauge("virtual_memory_bytes", stat.vsize as f64));
             metrics.push(gauge(
                 "resident_memory_bytes",
                 (stat.rss * *PAGESIZE) as f64,
