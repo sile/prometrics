@@ -71,12 +71,12 @@ impl Counter {
     }
 
     /// Increments this counter.
-    pub fn increment(&mut self) {
+    pub fn increment(&self) {
         self.0.value.update(|v| v + 1.0);
     }
 
     /// Adds `count` to this counter.
-    pub fn add(&mut self, count: f64) -> Result<()> {
+    pub fn add(&self, count: f64) -> Result<()> {
         track_assert!(count >= 0.0, ErrorKind::InvalidInput, "count={}", count);
         Ok(self.0.value.update(|v| v + count))
     }
