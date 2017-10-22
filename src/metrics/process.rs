@@ -1,3 +1,4 @@
+#[cfg(target_os = "linux")]
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::vec;
 #[cfg(target_os = "linux")]
