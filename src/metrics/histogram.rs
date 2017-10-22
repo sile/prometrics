@@ -78,7 +78,7 @@ impl Histogram {
     }
 
     /// Observes a value.
-    pub fn observe(&mut self, value: f64) {
+    pub fn observe(&self, value: f64) {
         assert!(!value.is_nan());
         let i = self.0
             .buckets
@@ -92,7 +92,7 @@ impl Histogram {
     }
 
     /// Measures the exeuction time of `f` and observes its duration in seconds.
-    pub fn time<F, T>(&mut self, f: F) -> T
+    pub fn time<F, T>(&self, f: F) -> T
     where
         F: FnOnce() -> T,
     {

@@ -95,14 +95,14 @@ impl Summary {
     }
 
     /// Observes a value.
-    pub fn observe(&mut self, value: f64) {
+    pub fn observe(&self, value: f64) {
         self.with_current_samples(|now, samples| { samples.push_back((now, value)); });
         self.0.count.inc();
         self.0.sum.update(|v| v + value);
     }
 
     /// Measures the exeuction time of `f` and observes its duration in seconds.
-    pub fn time<F, T>(&mut self, f: F) -> T
+    pub fn time<F, T>(&self, f: F) -> T
     where
         F: FnOnce() -> T,
     {
