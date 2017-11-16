@@ -41,13 +41,18 @@ lazy_static! {
 /// let _metrics = default_gatherer().lock().unwrap().gather();
 /// ```
 #[derive(Debug)]
-pub struct ProcessMetricsCollector{
+pub struct ProcessMetricsCollector {
     start_time: SystemTime,
 }
 impl ProcessMetricsCollector {
     /// Makes a new `ProcessMetricsCollector` instance.
     pub fn new() -> Self {
         ProcessMetricsCollector { start_time: SystemTime::now() }
+    }
+}
+impl Default for ProcessMetricsCollector {
+    fn default() -> Self {
+        Self::new()
     }
 }
 impl Collect for ProcessMetricsCollector {
