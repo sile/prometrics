@@ -1,5 +1,6 @@
+use std::time::SystemTime;
 #[cfg(target_os = "linux")]
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::UNIX_EPOCH;
 use std::vec;
 #[cfg(target_os = "linux")]
 use libc;
@@ -39,12 +40,14 @@ lazy_static! {
 /// // Gather
 /// let _metrics = default_gatherer().lock().unwrap().gather();
 /// ```
-#[derive(Debug, Default)]
-pub struct ProcessMetricsCollector(());
+#[derive(Debug)]
+pub struct ProcessMetricsCollector{
+    start_time: SystemTime,
+}
 impl ProcessMetricsCollector {
     /// Makes a new `ProcessMetricsCollector` instance.
     pub fn new() -> Self {
-        ProcessMetricsCollector(())
+        ProcessMetricsCollector { start_time: SystemTime::now() }
     }
 }
 impl Collect for ProcessMetricsCollector {
@@ -66,7 +69,7 @@ impl Collect for ProcessMetricsCollector {
                 "cpu_seconds_total",
                 (stat.utime + stat.stime) as f64 / *CLK_TCK,
             ));
-            if let Ok(start_time) = SystemTime::now().duration_since(UNIX_EPOCH) {
+            if let Ok(start_time) = self.start_time.duration_since(UNIX_EPOCH) {
                 metrics.push(gauge("start_time_seconds", start_time.as_secs() as f64));
             }
             metrics.push(gauge("threads_total", f64::from(stat.num_threads)));
