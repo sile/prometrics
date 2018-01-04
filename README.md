@@ -20,11 +20,11 @@ Examples
 use prometrics::default_gatherer;
 use prometrics::metrics::{CounterBuilder, GaugeBuilder};
 
-let mut counter = CounterBuilder::new("count")
+let counter = CounterBuilder::new("count")
     .default_registry()
     .finish()
     .unwrap();
-let mut gauge = GaugeBuilder::new("gauge")
+let gauge = GaugeBuilder::new("gauge")
     .label("foo", "bar")
     .default_registry()
     .finish()
@@ -35,18 +35,12 @@ let mut gauge = GaugeBuilder::new("gauge")
 
  let metrics = default_gatherer().lock().unwrap().gather();
  assert_eq!(
-    metrics
-        .into_iter()
-        .map(|m| format!("\n{}", m))
-        .collect::<Vec<_>>()
-        .join(""),
-    r#"
-# TYPE count counter
-count 1
-
-# TYPE gauge gauge
-gauge{foo="bar"} 12.3
-"#
+    metrics.to_text(),
+    format!("{}\n{}\n{}\n{}\n",
+            "# TYPE count counter",
+            "count 1",
+            "# TYPE gauge gauge",
+            "gauge{foo=\"bar\"} 12.3"));
 ```
 
 References

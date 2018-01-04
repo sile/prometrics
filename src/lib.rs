@@ -14,7 +14,7 @@
 //!     .default_registry()
 //!     .finish()
 //!     .unwrap();
-//! let mut gauge = GaugeBuilder::new("gauge")
+//! let gauge = GaugeBuilder::new("gauge")
 //!     .label("foo", "bar")
 //!     .default_registry()
 //!     .finish()
