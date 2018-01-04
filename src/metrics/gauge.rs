@@ -216,6 +216,10 @@ impl GaugeBuilder {
     }
 
     /// Builds a gauge.
+    ///
+    /// # Errors
+    ///
+    /// This method will return `Err(_)` if any of the name of the metric or labels is malformed.
     pub fn finish(&self) -> Result<Gauge> {
         let name = track!(MetricName::new(
             self.namespace.as_ref().map(AsRef::as_ref),
@@ -237,7 +241,7 @@ impl GaugeBuilder {
         };
         let gauge = Gauge(Arc::new(inner));
         for r in &self.registries {
-            track!(r.register(gauge.collector()))?;
+            r.register(gauge.collector());
         }
         Ok(gauge)
     }

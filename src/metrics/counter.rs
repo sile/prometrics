@@ -163,6 +163,10 @@ impl CounterBuilder {
     }
 
     /// Builds a counter.
+    ///
+    /// # Errors
+    ///
+    /// This method will return `Err(_)` if any of the name of the metric or labels is malformed.
     pub fn finish(&self) -> Result<Counter> {
         let name = track!(MetricName::new(
             self.namespace.as_ref().map(AsRef::as_ref),
@@ -184,7 +188,7 @@ impl CounterBuilder {
         };
         let counter = Counter(Arc::new(inner));
         for r in &self.registries {
-            track!(r.register(counter.collector()))?;
+            r.register(counter.collector());
         }
         Ok(counter)
     }

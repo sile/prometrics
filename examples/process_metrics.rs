@@ -6,7 +6,7 @@ use prometrics::metrics::ProcessMetricsCollector;
 use trackable::error::Failure;
 
 fn main() {
-    track_try_unwrap!(prometrics::default_registry().register(ProcessMetricsCollector::new(),));
+    prometrics::default_registry().register(ProcessMetricsCollector::new());
 
     let mut gatherer = track_try_unwrap!(
         prometrics::default_gatherer()

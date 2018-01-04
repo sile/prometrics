@@ -1,9 +1,8 @@
 use std::fmt;
 use std::sync::Mutex;
 use std::sync::mpsc;
-use trackable::error::ErrorKindExt;
 
-use {Collect, ErrorKind, Result};
+use Collect;
 use metric::{Metric, MetricFamily};
 
 lazy_static! {
@@ -34,7 +33,7 @@ impl Registry {
     /// Registers a collector.
     ///
     /// If `collector.collect()` returns `None`, it will be deregistered from this.
-    pub fn register<C>(&self, mut collector: C) -> Result<()>
+    pub fn register<C>(&self, mut collector: C)
     where
         C: Collect + Send + 'static,
     {
@@ -46,12 +45,7 @@ impl Registry {
                 false
             }
         };
-        track!(
-            self.tx
-                .send(Collector(Box::new(f)))
-                .map_err(|e| ErrorKind::Other.cause(e.to_string()))
-        )?;
-        Ok(())
+        let _ = self.tx.send(Collector(Box::new(f)));
     }
 }
 

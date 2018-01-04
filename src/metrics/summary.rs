@@ -260,6 +260,13 @@ impl SummaryBuilder {
     }
 
     /// Builds a summary.
+    ///
+    /// # Errors
+    ///
+    /// This method will return `Err(_)` if one of the following conditions is satisfied:
+    ///
+    /// - Any of the name of the metric or labels is malformed
+    /// - There is a quantile whose value is less than `0.0` or greater than `1.0`
     pub fn finish(&self) -> Result<Summary> {
         let namespace = self.namespace.as_ref().map(AsRef::as_ref);
         let subsystem = self.subsystem.as_ref().map(AsRef::as_ref);
@@ -293,7 +300,7 @@ impl SummaryBuilder {
         };
         let summary = Summary(Arc::new(inner));
         for r in &self.registries {
-            track!(r.register(summary.collector()))?;
+            r.register(summary.collector());
         }
         Ok(summary)
     }
