@@ -313,7 +313,7 @@ mod test {
 
     #[test]
     fn it_works() {
-        let mut histogram =
+        let histogram =
             track_try_unwrap!(HistogramBuilder::with_linear_buckets("foo", 0.0, 10.0, 5).finish());
         assert_eq!(histogram.metric_name().to_string(), "foo");
 

@@ -97,7 +97,7 @@ impl Collect for ProcessMetricsCollector {
 
 #[cfg(target_os = "linux")]
 fn counter(name: &str, value: f64) -> Metric {
-    let mut counter = CounterBuilder::new(name)
+    let counter = CounterBuilder::new(name)
         .namespace("process")
         .finish()
         .expect("Never fails");
@@ -107,7 +107,7 @@ fn counter(name: &str, value: f64) -> Metric {
 
 #[cfg(target_os = "linux")]
 fn gauge(name: &str, value: f64) -> Metric {
-    let mut gauge = GaugeBuilder::new(name)
+    let gauge = GaugeBuilder::new(name)
         .namespace("process")
         .finish()
         .expect("Never fails");

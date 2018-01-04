@@ -80,11 +80,11 @@ mod test {
 
     #[test]
     fn it_works() {
-        let mut counter = CounterBuilder::new("count")
+        let counter = CounterBuilder::new("count")
             .default_registry()
             .finish()
             .unwrap();
-        let mut gauge = GaugeBuilder::new("gauge")
+        let gauge = GaugeBuilder::new("gauge")
             .label("foo", "bar")
             .default_registry()
             .finish()

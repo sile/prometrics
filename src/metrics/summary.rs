@@ -332,7 +332,7 @@ mod test {
 
     #[test]
     fn it_works() {
-        let mut summary = track_try_unwrap!(
+        let summary = track_try_unwrap!(
             SummaryBuilder::new("foo", Duration::from_secs(10))
                 .quantile(0.25)
                 .quantile(0.5)
