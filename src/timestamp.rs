@@ -1,7 +1,7 @@
 //! Unix timestamp.
 use std;
 use std::ops::Deref;
-use std::time::{SystemTime, Duration, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use atomic::AtomicI64;
 
@@ -14,7 +14,11 @@ impl Timestamp {
     /// Returns the value of this timestamp.
     pub fn get(&self) -> Option<i64> {
         let v = self.0.get();
-        if v == NO_VALUE { None } else { Some(v) }
+        if v == NO_VALUE {
+            None
+        } else {
+            Some(v)
+        }
     }
 
     pub(crate) fn new() -> Self {

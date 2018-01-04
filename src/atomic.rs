@@ -28,10 +28,8 @@ mod atomic64 {
             unsafe { mem::transmute_copy(&value) }
         }
         pub fn set(&self, value: T) {
-            self.value.store(
-                unsafe { mem::transmute_copy(&value) },
-                Ordering::SeqCst,
-            );
+            self.value
+                .store(unsafe { mem::transmute_copy(&value) }, Ordering::SeqCst);
         }
     }
     impl Atomic64<u64> {

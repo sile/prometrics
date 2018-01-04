@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use std::sync::mpsc;
 use trackable::error::ErrorKindExt;
 
-use {Result, ErrorKind, Collect};
+use {Collect, ErrorKind, Result};
 use metric::{Metric, MetricFamily};
 
 lazy_static! {
@@ -38,15 +38,19 @@ impl Registry {
     where
         C: Collect + Send + 'static,
     {
-        let f = move |metrics: &mut Vec<Metric>| if let Some(m) = collector.collect() {
-            metrics.extend(m);
-            true
-        } else {
-            false
+        let f = move |metrics: &mut Vec<Metric>| {
+            if let Some(m) = collector.collect() {
+                metrics.extend(m);
+                true
+            } else {
+                false
+            }
         };
-        track!(self.tx.send(Collector(Box::new(f))).map_err(|e| {
-            ErrorKind::Other.cause(e.to_string())
-        }))?;
+        track!(
+            self.tx
+                .send(Collector(Box::new(f)))
+                .map_err(|e| ErrorKind::Other.cause(e.to_string()))
+        )?;
         Ok(())
     }
 }
@@ -86,7 +90,9 @@ impl Gatherer {
 
     /// Returns a `Registry` associated with this gatherer.
     pub fn registry(&self) -> Registry {
-        Registry { tx: self.tx.clone() }
+        Registry {
+            tx: self.tx.clone(),
+        }
     }
 
     /// Gathers metrics.

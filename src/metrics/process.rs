@@ -47,7 +47,9 @@ pub struct ProcessMetricsCollector {
 impl ProcessMetricsCollector {
     /// Makes a new `ProcessMetricsCollector` instance.
     pub fn new() -> Self {
-        ProcessMetricsCollector { start_time: SystemTime::now() }
+        ProcessMetricsCollector {
+            start_time: SystemTime::now(),
+        }
     }
 }
 impl Default for ProcessMetricsCollector {

@@ -3,7 +3,7 @@ use std::iter;
 use std::sync::{Arc, Weak};
 use std::time::Instant;
 
-use {Result, Collect, Registry};
+use {Collect, Registry, Result};
 use default_registry;
 use atomic::AtomicF64;
 use label::{Label, Labels, LabelsMut};
@@ -249,9 +249,9 @@ pub struct GaugeCollector(Weak<Inner>);
 impl Collect for GaugeCollector {
     type Metrics = iter::Once<Metric>;
     fn collect(&mut self) -> Option<Self::Metrics> {
-        self.0.upgrade().map(|inner| {
-            iter::once(Metric::Gauge(Gauge(inner)))
-        })
+        self.0
+            .upgrade()
+            .map(|inner| iter::once(Metric::Gauge(Gauge(inner))))
     }
 }
 

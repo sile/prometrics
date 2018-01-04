@@ -2,7 +2,7 @@ use std::fmt;
 use std::iter;
 use std::sync::{Arc, Weak};
 
-use {Result, ErrorKind, Collect, Registry};
+use {Collect, ErrorKind, Registry, Result};
 use default_registry;
 use atomic::AtomicF64;
 use label::{Label, Labels, LabelsMut};
@@ -196,9 +196,9 @@ pub struct CounterCollector(Weak<Inner>);
 impl Collect for CounterCollector {
     type Metrics = iter::Once<Metric>;
     fn collect(&mut self) -> Option<Self::Metrics> {
-        self.0.upgrade().map(|inner| {
-            iter::once(Metric::Counter(Counter(inner)))
-        })
+        self.0
+            .upgrade()
+            .map(|inner| iter::once(Metric::Counter(Counter(inner))))
     }
 }
 

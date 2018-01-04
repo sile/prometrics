@@ -1,8 +1,8 @@
 //! Metric.
 use std::fmt;
 
-use {Result, ErrorKind};
-use metrics::{Counter, Gauge, Summary, Histogram};
+use {ErrorKind, Result};
+use metrics::{Counter, Gauge, Histogram, Summary};
 
 /// Metric.
 ///
@@ -212,34 +212,26 @@ impl MetricFamily {
 
     pub(crate) fn new(metric: Metric) -> Self {
         match metric {
-            Metric::Counter(m) => {
-                MetricFamily {
-                    name: m.metric_name().clone(),
-                    help: m.help().map(|h| h.to_string()),
-                    metrics: Metrics::Counter(vec![m]),
-                }
-            }
-            Metric::Gauge(m) => {
-                MetricFamily {
-                    name: m.metric_name().clone(),
-                    help: m.help().map(|h| h.to_string()),
-                    metrics: Metrics::Gauge(vec![m]),
-                }
-            }
-            Metric::Summary(m) => {
-                MetricFamily {
-                    name: m.metric_name().clone(),
-                    help: m.help().map(|h| h.to_string()),
-                    metrics: Metrics::Summary(vec![m]),
-                }
-            }
-            Metric::Histogram(m) => {
-                MetricFamily {
-                    name: m.metric_name().clone(),
-                    help: m.help().map(|h| h.to_string()),
-                    metrics: Metrics::Histogram(vec![m]),
-                }
-            }
+            Metric::Counter(m) => MetricFamily {
+                name: m.metric_name().clone(),
+                help: m.help().map(|h| h.to_string()),
+                metrics: Metrics::Counter(vec![m]),
+            },
+            Metric::Gauge(m) => MetricFamily {
+                name: m.metric_name().clone(),
+                help: m.help().map(|h| h.to_string()),
+                metrics: Metrics::Gauge(vec![m]),
+            },
+            Metric::Summary(m) => MetricFamily {
+                name: m.metric_name().clone(),
+                help: m.help().map(|h| h.to_string()),
+                metrics: Metrics::Summary(vec![m]),
+            },
+            Metric::Histogram(m) => MetricFamily {
+                name: m.metric_name().clone(),
+                help: m.help().map(|h| h.to_string()),
+                metrics: Metrics::Histogram(vec![m]),
+            },
         }
     }
     pub(crate) fn same_family(&self, metric: &Metric) -> bool {
@@ -303,26 +295,18 @@ pub enum Metrics {
 impl fmt::Display for Metrics {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Metrics::Counter(ref v) => {
-                for m in v.iter() {
-                    writeln!(f, "{}", m)?;
-                }
-            }
-            Metrics::Gauge(ref v) => {
-                for m in v.iter() {
-                    writeln!(f, "{}", m)?;
-                }
-            }
-            Metrics::Summary(ref v) => {
-                for m in v.iter() {
-                    writeln!(f, "{}", m)?;
-                }
-            }
-            Metrics::Histogram(ref v) => {
-                for m in v.iter() {
-                    writeln!(f, "{}", m)?;
-                }
-            }
+            Metrics::Counter(ref v) => for m in v.iter() {
+                writeln!(f, "{}", m)?;
+            },
+            Metrics::Gauge(ref v) => for m in v.iter() {
+                writeln!(f, "{}", m)?;
+            },
+            Metrics::Summary(ref v) => for m in v.iter() {
+                writeln!(f, "{}", m)?;
+            },
+            Metrics::Histogram(ref v) => for m in v.iter() {
+                writeln!(f, "{}", m)?;
+            },
         }
         Ok(())
     }

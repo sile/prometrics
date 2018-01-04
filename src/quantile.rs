@@ -1,5 +1,5 @@
 //! Summary quantile.
-use {Result, ErrorKind};
+use {ErrorKind, Result};
 
 /// Summary quantile.
 #[derive(Debug, Clone, Copy)]

@@ -2,10 +2,10 @@ use std::cmp;
 use std::collections::VecDeque;
 use std::fmt;
 use std::iter;
-use std::sync::{Arc, Weak, Mutex};
-use std::time::{Instant, Duration, SystemTime};
+use std::sync::{Arc, Mutex, Weak};
+use std::time::{Duration, Instant, SystemTime};
 
-use {Result, ErrorKind, Collect, Registry};
+use {Collect, ErrorKind, Registry, Result};
 use default_registry;
 use atomic::{AtomicF64, AtomicU64};
 use label::{Label, Labels, LabelsMut};
@@ -96,7 +96,9 @@ impl Summary {
 
     /// Observes a value.
     pub fn observe(&self, value: f64) {
-        self.with_current_samples(|now, samples| { samples.push_back((now, value)); });
+        self.with_current_samples(|now, samples| {
+            samples.push_back((now, value));
+        });
         self.0.count.inc();
         self.0.sum.update(|v| v + value);
     }
@@ -277,9 +279,7 @@ impl SummaryBuilder {
                 .map(|quantile| track!(Quantile::new(*quantile)))
                 .collect::<Result<Vec<_>>>()
         )?;
-        quantiles.sort_by(|a, b| {
-            a.as_f64().partial_cmp(&b.as_f64()).expect("Never fails")
-        });
+        quantiles.sort_by(|a, b| a.as_f64().partial_cmp(&b.as_f64()).expect("Never fails"));
         let inner = Inner {
             quantile_name,
             labels: Labels::new(labels),
@@ -305,9 +305,9 @@ pub struct SummaryCollector(Weak<Inner>);
 impl Collect for SummaryCollector {
     type Metrics = iter::Once<Metric>;
     fn collect(&mut self) -> Option<Self::Metrics> {
-        self.0.upgrade().map(|inner| {
-            iter::once(Metric::Summary(Summary(inner)))
-        })
+        self.0
+            .upgrade()
+            .map(|inner| iter::once(Metric::Summary(Summary(inner))))
     }
 }
 

@@ -3,7 +3,7 @@
 //! [histogram]: https://prometheus.io/docs/concepts/metric_types/#histogram
 use std::slice;
 
-use {Result, ErrorKind};
+use {ErrorKind, Result};
 use atomic::AtomicU64;
 
 /// A bucket in which a [histogram][histogram] counts samples.

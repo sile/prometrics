@@ -9,7 +9,7 @@ use std::fmt;
 use std::ops::Deref;
 use atomic_immut::AtomicImmut;
 
-use {Result, ErrorKind};
+use {ErrorKind, Result};
 
 /// Metric label.
 ///
@@ -180,9 +180,9 @@ impl<'a> LabelsMut<'a> {
 
     /// Removes the label which has the name `name` if it exists.
     pub fn remove(&mut self, name: &str) {
-        self.inner.0.update(|labels| {
-            labels.iter().filter(|l| l.name != name).cloned().collect()
-        });
+        self.inner
+            .0
+            .update(|labels| labels.iter().filter(|l| l.name != name).cloned().collect());
     }
 
     /// Clears the all labels.

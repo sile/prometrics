@@ -56,7 +56,7 @@ extern crate trackable;
 
 pub use collect::Collect;
 pub use error::{Error, ErrorKind};
-pub use registry::{default_registry, default_gatherer, Registry, Gatherer};
+pub use registry::{default_gatherer, default_registry, Gatherer, Registry};
 
 pub mod bucket;
 pub mod label;

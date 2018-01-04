@@ -4,7 +4,7 @@ use std::iter;
 use std::sync::{Arc, Weak};
 use std::time::Instant;
 
-use {Result, ErrorKind, Collect, Registry};
+use {Collect, ErrorKind, Registry, Result};
 use default_registry;
 use atomic::{AtomicF64, AtomicU64};
 use bucket::{Bucket, CumulativeBuckets};
@@ -82,9 +82,7 @@ impl Histogram {
         assert!(!value.is_nan());
         let i = self.0
             .buckets
-            .binary_search_by(|b| {
-                b.upper_bound().partial_cmp(&value).expect("Never fails")
-            })
+            .binary_search_by(|b| b.upper_bound().partial_cmp(&value).expect("Never fails"))
             .unwrap_or_else(|i| i);
         self.0.buckets.get(i).map(|b| b.increment());
         self.0.count.inc();
@@ -264,9 +262,9 @@ impl HistogramBuilder {
                 .collect::<Result<Vec<_>>>()
         )?;
         buckets.sort_by(|a, b| {
-            a.upper_bound().partial_cmp(&b.upper_bound()).expect(
-                "Never fails",
-            )
+            a.upper_bound()
+                .partial_cmp(&b.upper_bound())
+                .expect("Never fails")
         });
         let inner = Inner {
             bucket_name,
@@ -291,9 +289,9 @@ pub struct HistogramCollector(Weak<Inner>);
 impl Collect for HistogramCollector {
     type Metrics = iter::Once<Metric>;
     fn collect(&mut self) -> Option<Self::Metrics> {
-        self.0.upgrade().map(|inner| {
-            iter::once(Metric::Histogram(Histogram(inner)))
-        })
+        self.0
+            .upgrade()
+            .map(|inner| iter::once(Metric::Histogram(Histogram(inner))))
     }
 }
 
