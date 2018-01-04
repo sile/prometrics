@@ -15,7 +15,7 @@ codecov = {repository = "sile/prometrics"}
 
 [dependencies]
 atomic_immut = "0.1"
-lazy_static = "0.2"
+lazy_static = "1"
 trackable = "0.2"
 
 [target.'cfg(target_os="linux")'.dependencies]
