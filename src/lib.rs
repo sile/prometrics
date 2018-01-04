@@ -10,7 +10,7 @@
 //! use prometrics::default_gatherer;
 //! use prometrics::metrics::{CounterBuilder, GaugeBuilder};
 //!
-//! let mut counter = CounterBuilder::new("count")
+//! let counter = CounterBuilder::new("count")
 //!     .default_registry()
 //!     .finish()
 //!     .unwrap();
@@ -25,12 +25,8 @@
 //!
 //!  let metrics = default_gatherer().lock().unwrap().gather();
 //!  assert_eq!(
-//!     metrics
-//!         .into_iter()
-//!         .map(|m| format!("\n{}", m))
-//!         .collect::<Vec<_>>()
-//!         .join(""),
-//!     format!("\n{}\n{}\n\n{}\n{}\n",
+//!     metrics.to_text(),
+//!     format!("{}\n{}\n{}\n{}\n",
 //!             "# TYPE count counter",
 //!             "count 1",
 //!             "# TYPE gauge gauge",
@@ -95,15 +91,10 @@ mod test {
 
         let metrics = default_gatherer().lock().unwrap().gather();
         assert_eq!(
-            metrics
-                .into_iter()
-                .map(|m| format!("\n{}", m))
-                .collect::<Vec<_>>()
-                .join(""),
+            format!("\n{}", metrics.to_text()),
             r#"
 # TYPE count counter
 count 1
-
 # TYPE gauge gauge
 gauge{foo="bar"} 12.3
 "#

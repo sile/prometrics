@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use std::sync::mpsc;
 
 use Collect;
-use metric::{Metric, MetricFamily};
+use metric::{Metric, MetricFamilies, MetricFamily};
 
 lazy_static! {
     static ref DEFAULT_GATHERER: Mutex<Gatherer> = Mutex::new(Gatherer::new());
@@ -90,7 +90,7 @@ impl Gatherer {
     }
 
     /// Gathers metrics.
-    pub fn gather(&mut self) -> Vec<MetricFamily> {
+    pub fn gather(&mut self) -> MetricFamilies {
         while let Ok(collector) = self.rx.try_recv() {
             self.collectors.push(collector);
         }
@@ -114,6 +114,6 @@ impl Gatherer {
                 families.last_mut().unwrap().push(metric);
             }
         }
-        families
+        MetricFamilies(families)
     }
 }

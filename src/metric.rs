@@ -1,4 +1,5 @@
 //! Metric.
+use std;
 use std::fmt;
 
 use {ErrorKind, Result};
@@ -170,6 +171,39 @@ impl fmt::Display for MetricValue {
         } else {
             write!(f, "-Inf")
         }
+    }
+}
+
+/// Metric families.
+#[derive(Debug, Clone)]
+pub struct MetricFamilies(pub(crate) Vec<MetricFamily>);
+impl MetricFamilies {
+    /// Consumes the `MetricFamilies` and returns the underlying vector.
+    pub fn into_vec(self) -> Vec<MetricFamily> {
+        self.0
+    }
+
+    /// Converts to the text format.
+    pub fn to_text(&self) -> String {
+        use std::fmt::Write;
+
+        let mut buf = String::new();
+        for m in &self.0 {
+            write!(buf, "{}", m).expect("Never fails");
+        }
+        buf
+    }
+}
+impl AsRef<[MetricFamily]> for MetricFamilies {
+    fn as_ref(&self) -> &[MetricFamily] {
+        &self.0
+    }
+}
+impl IntoIterator for MetricFamilies {
+    type Item = MetricFamily;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
     }
 }
 
