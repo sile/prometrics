@@ -33,7 +33,7 @@ fn counter_add_round_float(b: &mut test::Bencher) {
 fn counter_add_u64(b: &mut test::Bencher) {
     let counter = Counter::new("bench").unwrap();
     b.iter(|| {
-        let _ = counter.add_u64(3);
+        counter.add_u64(3);
     })
 }
 

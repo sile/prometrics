@@ -249,9 +249,10 @@ impl Value {
 
     #[inline]
     fn add(&self, count: f64) {
-        let floor = count.floor();
-        if floor == count {
-            self.u64.add(floor as u64);
+        let floor = count.floor() as u64;
+        let ceil = count.ceil() as u64;
+        if floor == ceil {
+            self.u64.add(floor);
         } else {
             self.f64.update(|v| v + count);
         }
