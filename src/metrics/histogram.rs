@@ -69,7 +69,7 @@ impl Histogram {
 
     /// Returns the total observation count.
     pub fn count(&self) -> u64 {
-        self.0.count.get()
+        self.0.buckets.iter().map(|b| b.count()).sum()
     }
 
     /// Returns the sum of the observed values.
@@ -85,7 +85,6 @@ impl Histogram {
             .binary_search_by(|b| b.upper_bound().partial_cmp(&value).expect("Never fails"))
             .unwrap_or_else(|i| i);
         self.0.buckets.get(i).map(|b| b.increment());
-        self.0.count.inc();
         self.0.sum.update(|v| v + value);
     }
 
