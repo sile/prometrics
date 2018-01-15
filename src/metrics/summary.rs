@@ -242,7 +242,7 @@ impl SummaryBuilder {
         self
     }
 
-    /// Adds a registry to which the resulting histograms will be registered..
+    /// Adds a registry to which the resulting histograms will be registered.
     pub fn registry(&mut self, registry: Registry) -> &mut Self {
         self.registries.push(registry);
         self
