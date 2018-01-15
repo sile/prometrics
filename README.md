@@ -43,6 +43,28 @@ let gauge = GaugeBuilder::new("gauge")
             "gauge{foo=\"bar\"} 12.3"));
 ```
 
+Benchmark
+----------
+
+```console
+$ uname -a
+Linux DESKTOP 4.4.0-43-Microsoft #1-Microsoft Wed Dec 31 14:42:53 PST 2014 x86_64 x86_64 x86_64 GNU/Linux
+
+$ lscpu | grep 'Model name:'
+Model name:            Intel(R) Core(TM) i7-7660U CPU @ 2.50GHz
+
+$ cargo +nightly bench
+test counter_add_float       ... bench:          10 ns/iter (+/- 0)
+test counter_add_round_float ... bench:           4 ns/iter (+/- 0)
+test counter_add_u64         ... bench:           4 ns/iter (+/- 0)
+test counter_increment       ... bench:           4 ns/iter (+/- 0)
+test gauge_set               ... bench:           4 ns/iter (+/- 0)
+test histogram_observe       ... bench:          18 ns/iter (+/- 0)
+test summary_observe         ... bench:         481 ns/iter (+/- 21)
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 7 measured; 0 filtered out
+```
+
 References
 -----------
 
