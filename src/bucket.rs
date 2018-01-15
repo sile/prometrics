@@ -18,6 +18,7 @@ pub struct Bucket {
 }
 impl Bucket {
     /// Returns the count of samples in this bucket.
+    #[inline]
     pub fn count(&self) -> u64 {
         self.count.get()
     }
@@ -25,6 +26,7 @@ impl Bucket {
     /// Returns the upper bound of this bucket.
     ///
     /// This method never return a NaN value.
+    #[inline]
     pub fn upper_bound(&self) -> f64 {
         self.upper_bound
     }
@@ -36,6 +38,8 @@ impl Bucket {
             upper_bound,
         })
     }
+
+    #[inline]
     pub(crate) fn increment(&self) {
         self.count.inc();
     }

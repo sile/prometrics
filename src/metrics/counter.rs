@@ -66,22 +66,26 @@ impl Counter {
     }
 
     /// Returns the value of this counter.
+    #[inline]
     pub fn value(&self) -> f64 {
         self.0.value.get()
     }
 
     /// Increments this counter.
+    #[inline]
     pub fn increment(&self) {
         self.0.value.increment()
     }
 
     /// Adds `count` to this counter.
+    #[inline]
     pub fn add(&self, count: f64) -> Result<()> {
         track_assert!(count >= 0.0, ErrorKind::InvalidInput, "count={}", count);
         Ok(self.0.value.add(count))
     }
 
     /// Adds `count` to this counter.
+    #[inline]
     pub fn add_u64(&self, count: u64) {
         self.0.value.add_u64(count);
     }
@@ -232,12 +236,18 @@ impl Value {
             u64: AtomicU64::new(0),
         }
     }
+
+    #[inline]
     fn get(&self) -> f64 {
         self.f64.get() + self.u64.get() as f64
     }
+
+    #[inline]
     fn increment(&self) {
         self.u64.inc();
     }
+
+    #[inline]
     fn add(&self, count: f64) {
         let floor = count.floor();
         if floor == count {
@@ -246,6 +256,8 @@ impl Value {
             self.f64.update(|v| v + count);
         }
     }
+
+    #[inline]
     fn add_u64(&self, count: u64) {
         self.u64.add(count);
     }

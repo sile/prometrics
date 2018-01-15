@@ -23,14 +23,20 @@ mod atomic64 {
                 _phantom: PhantomData,
             }
         }
+
+        #[inline]
         pub fn get(&self) -> T {
             let value = self.value.load(Ordering::SeqCst);
             unsafe { mem::transmute_copy(&value) }
         }
+
+        #[inline]
         pub fn set(&self, value: T) {
             self.value
                 .store(unsafe { mem::transmute_copy(&value) }, Ordering::SeqCst);
         }
+
+        #[inline]
         pub fn update<F>(&self, f: F)
         where
             F: Fn(T) -> T,
@@ -49,9 +55,12 @@ mod atomic64 {
         }
     }
     impl Atomic64<u64> {
+        #[inline]
         pub fn inc(&self) {
             self.value.fetch_add(1, Ordering::SeqCst);
         }
+
+        #[inline]
         pub fn add(&self, count: u64) {
             self.value.fetch_add(count as usize, Ordering::SeqCst);
         }
@@ -67,6 +76,8 @@ mod atomic64 {
         pub fn new(value: T) -> Self {
             Atomic64(Mutex::new(value))
         }
+
+        #[inline]
         pub fn get(&self) -> T {
             if let Some(v) = self.0.lock().ok() {
                 *v
@@ -74,11 +85,15 @@ mod atomic64 {
                 T::default()
             }
         }
+
+        #[inline]
         pub fn set(&self, value: T) {
             if let Some(mut v) = self.0.lock().ok() {
                 *v = value;
             }
         }
+
+        #[inline]
         pub fn update<F>(&self, f: F)
         where
             F: Fn(T) -> T,
@@ -92,9 +107,12 @@ mod atomic64 {
         }
     }
     impl Atomic64<u64> {
+        #[inline]
         pub fn inc(&self) {
             self.value.update(|v| *v + 1);
         }
+
+        #[inline]
         pub fn add(&self, count: u64) {
             self.value.update(|v| *v + count);
         }

@@ -60,11 +60,13 @@ impl Summary {
     }
 
     /// Returns the total observation count.
+    #[inline]
     pub fn count(&self) -> u64 {
         self.0.count.get()
     }
 
     /// Returns the sum of the observed values.
+    #[inline]
     pub fn sum(&self) -> f64 {
         self.0.sum.get()
     }
@@ -95,6 +97,7 @@ impl Summary {
     }
 
     /// Observes a value.
+    #[inline]
     pub fn observe(&self, value: f64) {
         self.with_current_samples(|now, samples| {
             samples.push_back((now, value));
@@ -104,6 +107,7 @@ impl Summary {
     }
 
     /// Measures the exeuction time of `f` and observes its duration in seconds.
+    #[inline]
     pub fn time<F, T>(&self, f: F) -> T
     where
         F: FnOnce() -> T,

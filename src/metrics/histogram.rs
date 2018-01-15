@@ -68,16 +68,19 @@ impl Histogram {
     }
 
     /// Returns the total observation count.
+    #[inline]
     pub fn count(&self) -> u64 {
         self.0.buckets.iter().map(|b| b.count()).sum()
     }
 
     /// Returns the sum of the observed values.
+    #[inline]
     pub fn sum(&self) -> f64 {
         self.0.sum.get()
     }
 
     /// Observes a value.
+    #[inline]
     pub fn observe(&self, value: f64) {
         assert!(!value.is_nan());
         let i = self.0
@@ -89,6 +92,7 @@ impl Histogram {
     }
 
     /// Measures the exeuction time of `f` and observes its duration in seconds.
+    #[inline]
     pub fn time<F, T>(&self, f: F) -> T
     where
         F: FnOnce() -> T,

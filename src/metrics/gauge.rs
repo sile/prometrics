@@ -54,36 +54,43 @@ impl Gauge {
     }
 
     /// Returns the value of this gauge.
+    #[inline]
     pub fn value(&self) -> f64 {
         self.0.value.get()
     }
 
     /// Increments this gauge.
+    #[inline]
     pub fn increment(&self) {
         self.add(1.0);
     }
 
     /// Adds `count` to this gauge.
+    #[inline]
     pub fn add(&self, count: f64) {
         self.0.value.update(|v| v + count);
     }
 
     /// Decrements this gauge.
+    #[inline]
     pub fn decrement(&self) {
         self.add(-1.0);
     }
 
     /// Subtracts `count` from this gauge.
+    #[inline]
     pub fn subtract(&self, count: f64) {
         self.add(-count);
     }
 
     /// Sets this gauge to `value`.
+    #[inline]
     pub fn set(&self, value: f64) {
         self.0.value.set(value);
     }
 
     /// Sets this gauge to the current unixtime in seconds.
+    #[inline]
     pub fn set_to_current_time(&self) {
         self.set(timestamp::now_unixtime_seconds());
     }
@@ -104,6 +111,7 @@ impl Gauge {
     /// });
     /// assert_eq!(gauge0.value(), 0.0);
     /// ```
+    #[inline]
     pub fn track_inprogress<F, T>(&self, f: F) -> T
     where
         F: FnOnce() -> T,
@@ -115,6 +123,7 @@ impl Gauge {
     }
 
     /// Measures the exeuction time of `f` and sets this gauge to its duration in seconds.
+    #[inline]
     pub fn time<F, T>(&self, f: F) -> T
     where
         F: FnOnce() -> T,
