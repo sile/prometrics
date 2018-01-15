@@ -31,6 +31,22 @@ mod atomic64 {
             self.value
                 .store(unsafe { mem::transmute_copy(&value) }, Ordering::SeqCst);
         }
+        pub fn update<F>(&self, f: F)
+        where
+            F: Fn(T) -> T,
+        {
+            loop {
+                let old = self.get();
+                let new = f(old);
+                unsafe {
+                    let old = mem::transmute_copy(&old);
+                    let new = mem::transmute_copy(&new);
+                    if self.value.compare_and_swap(old, new, Ordering::SeqCst) == old {
+                        break;
+                    }
+                }
+            }
+        }
     }
     impl Atomic64<u64> {
         pub fn inc(&self) {
@@ -60,20 +76,22 @@ mod atomic64 {
                 *v = value;
             }
         }
+        pub fn update<F>(&self, f: F)
+        where
+            F: Fn(T) -> T,
+        {
+            loop {
+                if let Some(mut v) = self.0.lock().ok() {
+                    *v = f(*v);
+                    break;
+                }
+            }
+        }
     }
     impl Atomic64<u64> {
         pub fn inc(&self) {
             self.value.update(|v| *v + 1);
         }
-    }
-}
-impl<T: Default + Copy> atomic64::Atomic64<T> {
-    pub fn update<F>(&self, f: F)
-    where
-        F: FnOnce(T) -> T,
-    {
-        let v = self.get();
-        self.set(f(v));
     }
 }
 
