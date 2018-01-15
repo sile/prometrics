@@ -52,6 +52,9 @@ mod atomic64 {
         pub fn inc(&self) {
             self.value.fetch_add(1, Ordering::SeqCst);
         }
+        pub fn add(&self, count: u64) {
+            self.value.fetch_add(count as usize, Ordering::SeqCst);
+        }
     }
 }
 #[cfg(not(target_pointer_width = "64"))]
@@ -91,6 +94,9 @@ mod atomic64 {
     impl Atomic64<u64> {
         pub fn inc(&self) {
             self.value.update(|v| *v + 1);
+        }
+        pub fn add(&self, count: u64) {
+            self.value.update(|v| *v + count);
         }
     }
 }

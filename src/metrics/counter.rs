@@ -4,7 +4,7 @@ use std::sync::{Arc, Weak};
 
 use {Collect, ErrorKind, Registry, Result};
 use default_registry;
-use atomic::AtomicF64;
+use atomic::{AtomicF64, AtomicU64};
 use label::{Label, Labels, LabelsMut};
 use metric::{Metric, MetricName, MetricValue};
 use timestamp::{Timestamp, TimestampMut};
@@ -72,13 +72,18 @@ impl Counter {
 
     /// Increments this counter.
     pub fn increment(&self) {
-        self.0.value.update(|v| v + 1.0);
+        self.0.value.increment()
     }
 
     /// Adds `count` to this counter.
     pub fn add(&self, count: f64) -> Result<()> {
         track_assert!(count >= 0.0, ErrorKind::InvalidInput, "count={}", count);
-        Ok(self.0.value.update(|v| v + count))
+        Ok(self.0.value.add(count))
+    }
+
+    /// Adds `count` to this counter.
+    pub fn add_u64(&self, count: u64) {
+        self.0.value.add_u64(count);
     }
 
     /// Returns a collector for this counter.
@@ -184,7 +189,7 @@ impl CounterBuilder {
             labels: Labels::new(labels),
             help: self.help.clone(),
             timestamp: Timestamp::new(),
-            value: AtomicF64::new(0.0),
+            value: Value::new(),
         };
         let counter = Counter(Arc::new(inner));
         for r in &self.registries {
@@ -212,7 +217,38 @@ struct Inner {
     labels: Labels,
     help: Option<String>,
     timestamp: Timestamp,
-    value: AtomicF64,
+    value: Value,
+}
+
+#[derive(Debug)]
+struct Value {
+    f64: AtomicF64,
+    u64: AtomicU64,
+}
+impl Value {
+    fn new() -> Self {
+        Value {
+            f64: AtomicF64::new(0.0),
+            u64: AtomicU64::new(0),
+        }
+    }
+    fn get(&self) -> f64 {
+        self.f64.get() + self.u64.get() as f64
+    }
+    fn increment(&self) {
+        self.u64.inc();
+    }
+    fn add(&self, count: f64) {
+        let floor = count.floor();
+        if floor == count {
+            self.u64.add(floor as u64);
+        } else {
+            self.f64.update(|v| v + count);
+        }
+    }
+    fn add_u64(&self, count: u64) {
+        self.u64.add(count);
+    }
 }
 
 #[cfg(test)]
@@ -236,11 +272,17 @@ mod test {
         counter.add(3.45).unwrap();
         assert_eq!(counter.value(), 4.45);
 
-        assert_eq!(counter.to_string(), "test_counter_foo_total 4.45");
+        counter.add(2.0).unwrap();
+        assert_eq!(counter.value(), 6.45);
+
+        counter.add_u64(2);
+        assert_eq!(counter.value(), 8.45);
+
+        assert_eq!(counter.to_string(), "test_counter_foo_total 8.45");
         counter.labels_mut().insert("bar", "baz").unwrap();
         assert_eq!(
             counter.to_string(),
-            r#"test_counter_foo_total{bar="baz"} 4.45"#
+            r#"test_counter_foo_total{bar="baz"} 8.45"#
         );
     }
 }
