@@ -53,6 +53,12 @@ impl MetricBuilder {
         self
     }
 
+    /// Clears the current registries, then sets `registry` as the new one.
+    pub fn set_registry(&mut self, registry: Registry) -> &mut Self {
+        self.registries = vec![registry];
+        self
+    }
+
     /// Makes a `CounterBuilder` that inherited the setting of this builder.
     pub fn counter(&self, name: &str) -> CounterBuilder {
         let mut builder = CounterBuilder::new(name);
