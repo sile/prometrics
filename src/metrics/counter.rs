@@ -82,7 +82,8 @@ impl Counter {
     #[inline]
     pub fn add(&self, count: f64) -> Result<()> {
         track_assert!(count >= 0.0, ErrorKind::InvalidInput, "count={}", count);
-        Ok(self.0.value.add(count))
+        self.0.value.add(count);
+        Ok(())
     }
 
     /// Adds `count` to this counter.

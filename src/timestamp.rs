@@ -93,5 +93,5 @@ pub(crate) fn now_unixtime_seconds() -> f64 {
 }
 
 pub(crate) fn duration_to_unixtime_seconds(d: Duration) -> f64 {
-    d.as_secs() as f64 + f64::from(d.subsec_nanos()) / 1000_000_000.0
+    d.as_secs() as f64 + f64::from(d.subsec_nanos()) / 1_000_000_000.0
 }

@@ -70,7 +70,6 @@ pub struct Gatherer {
     rx: mpsc::Receiver<Collector>,
     collectors: Vec<Collector>,
 }
-#[cfg_attr(feature = "cargo-clippy", allow(new_without_default))]
 impl Gatherer {
     /// Makes a new `Gatherer` instance.
     pub fn new() -> Self {
@@ -115,5 +114,10 @@ impl Gatherer {
             }
         }
         MetricFamilies(families)
+    }
+}
+impl Default for Gatherer {
+    fn default() -> Self {
+        Self::new()
     }
 }
