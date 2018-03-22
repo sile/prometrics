@@ -1,3 +1,4 @@
+use std::cmp;
 use std::fmt;
 use std::sync::Mutex;
 use std::sync::mpsc;
@@ -103,7 +104,14 @@ impl Gatherer {
                 self.collectors.swap_remove(i);
             }
         }
-        metrics.sort_by(|a, b| (a.name(), a.kind()).cmp(&(b.name(), b.kind())));
+        metrics.sort_by(|a, b| {
+            let result = (a.name(), a.kind()).cmp(&(b.name(), b.kind()));
+            if result == cmp::Ordering::Equal {
+                a.labels().iter().cmp(b.labels().iter())
+            } else {
+                result
+            }
+        });
 
         let mut families: Vec<MetricFamily> = Vec::new();
         for metric in metrics {

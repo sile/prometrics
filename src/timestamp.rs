@@ -24,6 +24,9 @@ impl Timestamp {
     pub(crate) fn new() -> Self {
         Timestamp(AtomicI64::new(NO_VALUE))
     }
+    pub(crate) fn from_value(v: Option<i64>) -> Self {
+        Timestamp(AtomicI64::new(v.unwrap_or(NO_VALUE)))
+    }
     fn clear(&self) {
         self.0.set(NO_VALUE);
     }

@@ -2,7 +2,11 @@
 use std;
 use std::fmt;
 
+pub use aggregated_metrics::{AggregatedCounter, AggregatedGauge, AggregatedHistogram,
+                             AggregatedSummary};
+
 use {ErrorKind, Result};
+use label::Labels;
 use metrics::{Counter, Gauge, Histogram, Summary};
 
 /// Metric.
@@ -29,13 +33,23 @@ impl Metric {
         }
     }
 
-    /// Returns tye kind of this metric.
+    /// Returns the kind of this metric.
     pub fn kind(&self) -> MetricKind {
         match *self {
             Metric::Counter(_) => MetricKind::Counter,
             Metric::Gauge(_) => MetricKind::Gauge,
             Metric::Summary(_) => MetricKind::Summary,
             Metric::Histogram(_) => MetricKind::Histogram,
+        }
+    }
+
+    /// Returns the labels of this metric.
+    pub fn labels(&self) -> &Labels {
+        match *self {
+            Metric::Counter(ref m) => m.labels(),
+            Metric::Gauge(ref m) => m.labels(),
+            Metric::Summary(ref m) => m.labels(),
+            Metric::Histogram(ref m) => m.labels(),
         }
     }
 }
@@ -249,22 +263,22 @@ impl MetricFamily {
             Metric::Counter(m) => MetricFamily {
                 name: m.metric_name().clone(),
                 help: m.help().map(|h| h.to_string()),
-                metrics: Metrics::Counter(vec![m]),
+                metrics: Metrics::Counter(vec![AggregatedCounter::new(m)]),
             },
             Metric::Gauge(m) => MetricFamily {
                 name: m.metric_name().clone(),
                 help: m.help().map(|h| h.to_string()),
-                metrics: Metrics::Gauge(vec![m]),
+                metrics: Metrics::Gauge(vec![AggregatedGauge::new(m)]),
             },
             Metric::Summary(m) => MetricFamily {
                 name: m.metric_name().clone(),
                 help: m.help().map(|h| h.to_string()),
-                metrics: Metrics::Summary(vec![m]),
+                metrics: Metrics::Summary(vec![AggregatedSummary::new(m)]),
             },
             Metric::Histogram(m) => MetricFamily {
                 name: m.metric_name().clone(),
                 help: m.help().map(|h| h.to_string()),
-                metrics: Metrics::Histogram(vec![m]),
+                metrics: Metrics::Histogram(vec![AggregatedHistogram::new(m)]),
             },
         }
     }
@@ -275,22 +289,34 @@ impl MetricFamily {
         match metric {
             Metric::Counter(m) => {
                 if let Metrics::Counter(ref mut v) = self.metrics {
-                    v.push(m);
+                    let m = AggregatedCounter::new(m);
+                    if v.last_mut().map_or(true, |x| !x.try_merge(&m)) {
+                        v.push(m);
+                    }
                 }
             }
             Metric::Gauge(m) => {
                 if let Metrics::Gauge(ref mut v) = self.metrics {
-                    v.push(m);
+                    let m = AggregatedGauge::new(m);
+                    if v.last_mut().map_or(true, |x| !x.try_merge(&m)) {
+                        v.push(m);
+                    }
                 }
             }
             Metric::Summary(m) => {
                 if let Metrics::Summary(ref mut v) = self.metrics {
-                    v.push(m);
+                    let m = AggregatedSummary::new(m);
+                    if v.last_mut().map_or(true, |x| !x.try_merge(&m)) {
+                        v.push(m);
+                    }
                 }
             }
             Metric::Histogram(m) => {
                 if let Metrics::Histogram(ref mut v) = self.metrics {
-                    v.push(m);
+                    let m = AggregatedHistogram::new(m);
+                    if v.last_mut().map_or(true, |x| !x.try_merge(&m)) {
+                        v.push(m);
+                    }
                 }
             }
         }
@@ -321,10 +347,10 @@ impl fmt::Display for MetricFamily {
 #[derive(Debug, Clone)]
 #[allow(missing_docs)]
 pub enum Metrics {
-    Counter(Vec<Counter>),
-    Gauge(Vec<Gauge>),
-    Summary(Vec<Summary>),
-    Histogram(Vec<Histogram>),
+    Counter(Vec<AggregatedCounter>),
+    Gauge(Vec<AggregatedGauge>),
+    Summary(Vec<AggregatedSummary>),
+    Histogram(Vec<AggregatedHistogram>),
 }
 impl fmt::Display for Metrics {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

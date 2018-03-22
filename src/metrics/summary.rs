@@ -124,7 +124,11 @@ impl Summary {
         SummaryCollector(Arc::downgrade(&self.0))
     }
 
-    fn with_current_samples<F, T>(&self, f: F) -> T
+    pub(crate) fn quantiles_without_values(&self) -> &[Quantile] {
+        &self.0.quantiles
+    }
+
+    pub(crate) fn with_current_samples<F, T>(&self, f: F) -> T
     where
         F: FnOnce(SystemTime, &mut VecDeque<(SystemTime, f64)>) -> T,
     {

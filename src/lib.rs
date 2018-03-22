@@ -61,6 +61,7 @@ pub mod metrics;
 pub mod quantile;
 pub mod timestamp;
 
+mod aggregated_metrics;
 mod atomic;
 mod collect;
 mod error;
@@ -71,7 +72,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[cfg(test)]
 mod test {
-    use metrics::{CounterBuilder, GaugeBuilder};
+    use metrics::{CounterBuilder, GaugeBuilder, MetricBuilder};
+    use registry::Gatherer;
     use super::*;
 
     #[test]
@@ -97,6 +99,52 @@ mod test {
 count 1
 # TYPE gauge gauge
 gauge{foo="bar"} 12.3
+"#
+        );
+    }
+
+    #[test]
+    fn aggregation_works() {
+        let mut gatherer = Gatherer::new();
+        let mut builder = MetricBuilder::new();
+        builder.set_registry(gatherer.registry());
+
+        let counter = builder.counter("count").finish().unwrap();
+        let gauge = builder.gauge("gauge").label("foo", "bar").finish().unwrap();
+        let histogram = builder.histogram("histogram").bucket(5.0).finish().unwrap();
+        counter.increment();
+        gauge.set(12.3);
+        histogram.observe(4.0);
+
+        let counter = builder.counter("count").finish().unwrap();
+        let gauge = builder.gauge("gauge").label("foo", "bar").finish().unwrap();
+        let histogram = builder
+            .histogram("histogram")
+            .bucket(10.0)
+            .finish()
+            .unwrap();
+        counter.increment();
+        gauge.set(12.3);
+        histogram.observe(8.0);
+
+        let gauge = builder.gauge("gauge").finish().unwrap();
+        gauge.set(12.3);
+
+        let metrics = gatherer.gather();
+        assert_eq!(
+            format!("\n{}", metrics.to_text()),
+            r#"
+# TYPE count counter
+count 2
+# TYPE gauge gauge
+gauge 12.3
+gauge{foo="bar"} 24.6
+# TYPE histogram histogram
+histogram_bucket{le="5"} 1
+histogram_bucket{le="10"} 2
+histogram_bucket{le="+Inf"} 2
+histogram_sum 12
+histogram_count 2
 "#
         );
     }

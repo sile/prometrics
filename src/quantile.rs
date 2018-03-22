@@ -1,8 +1,10 @@
 //! Summary quantile.
+use std::cmp;
+
 use {ErrorKind, Result};
 
 /// Summary quantile.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialOrd, PartialEq)]
 pub struct Quantile(f64);
 impl Quantile {
     /// Makes a new `Quantile` instance.
@@ -26,3 +28,9 @@ impl Quantile {
         self.0
     }
 }
+impl Ord for Quantile {
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
+        self.partial_cmp(other).expect("Never fails")
+    }
+}
+impl Eq for Quantile {}
