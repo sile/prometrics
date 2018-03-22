@@ -1,13 +1,14 @@
 use std::fmt;
 use std::iter;
 use std::sync::{Arc, Weak};
+use std::time::Instant;
 
 use {Collect, ErrorKind, Registry, Result};
 use default_registry;
 use atomic::{AtomicF64, AtomicU64};
 use label::{Label, Labels, LabelsMut};
 use metric::{Metric, MetricName, MetricValue};
-use timestamp::{Timestamp, TimestampMut};
+use timestamp::{self, Timestamp, TimestampMut};
 
 /// `Counter` is a cumulative metric that represents a single numerical value that only ever goes up.
 ///
@@ -88,6 +89,19 @@ impl Counter {
     #[inline]
     pub fn add_u64(&self, count: u64) {
         self.0.value.add_u64(count);
+    }
+
+    /// Measures the exeuction time of `f` and adds its duration to the counter in seconds.
+    #[inline]
+    pub fn time<F, T>(&self, f: F) -> T
+    where
+        F: FnOnce() -> T,
+    {
+        let start = Instant::now();
+        let result = f();
+        let elapsed = timestamp::duration_to_unixtime_seconds(start.elapsed());
+        self.add(elapsed).expect("Never fails");
+        result
     }
 
     /// Returns a collector for this counter.
