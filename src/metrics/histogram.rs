@@ -48,12 +48,12 @@ impl Histogram {
     }
 
     /// Returns the timestamp of this histogram.
-    pub fn timetamp(&self) -> &Timestamp {
+    pub fn timestamp(&self) -> &Timestamp {
         &self.0.timestamp
     }
 
     /// Returns the mutable timestamp of this histogram.
-    pub fn timetamp_mut(&mut self) -> TimestampMut {
+    pub fn timestamp_mut(&mut self) -> TimestampMut {
         TimestampMut::new(&self.0.timestamp)
     }
 
@@ -116,7 +116,7 @@ impl fmt::Display for Histogram {
         } else {
             "".to_string()
         };
-        let timestamp = if let Some(t) = self.timetamp().get() {
+        let timestamp = if let Some(t) = self.timestamp().get() {
             format!(" {}", t)
         } else {
             "".to_string()

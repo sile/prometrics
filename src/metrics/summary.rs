@@ -50,12 +50,12 @@ impl Summary {
     }
 
     /// Returns the timestamp of this summary.
-    pub fn timetamp(&self) -> &Timestamp {
+    pub fn timestamp(&self) -> &Timestamp {
         &self.0.timestamp
     }
 
     /// Returns the mutable timestamp of this summary.
-    pub fn timetamp_mut(&mut self) -> TimestampMut {
+    pub fn timestamp_mut(&mut self) -> TimestampMut {
         TimestampMut::new(&self.0.timestamp)
     }
 
@@ -151,7 +151,7 @@ impl fmt::Display for Summary {
         } else {
             "".to_string()
         };
-        let timestamp = if let Some(t) = self.timetamp().get() {
+        let timestamp = if let Some(t) = self.timestamp().get() {
             format!(" {}", t)
         } else {
             "".to_string()
