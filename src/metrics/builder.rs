@@ -27,6 +27,16 @@ impl MetricBuilder {
         }
     }
 
+    /// Makes a builder without any registries.
+    pub fn without_registry() -> Self {
+        MetricBuilder {
+            namespace: None,
+            subsystem: None,
+            labels: Vec::new(),
+            registries: Vec::new(),
+        }
+    }
+
     /// Sets the namespace part of the metric name.
     pub fn namespace(&mut self, namespace: &str) -> &mut Self {
         self.namespace = Some(namespace.to_owned());
