@@ -88,13 +88,14 @@ impl<'a> Deref for TimestampMut<'a> {
 pub(crate) fn now_unixtime_seconds() -> f64 {
     let now = SystemTime::now();
     if let Ok(d) = now.duration_since(UNIX_EPOCH) {
-        duration_to_unixtime_seconds(d)
+        duration_to_seconds(d)
     } else {
         let d = UNIX_EPOCH.duration_since(now).expect("Never fails");
-        -duration_to_unixtime_seconds(d)
+        -duration_to_seconds(d)
     }
 }
 
-pub(crate) fn duration_to_unixtime_seconds(d: Duration) -> f64 {
+/// Converts `Duration` to `f64` in seconds.
+pub fn duration_to_seconds(d: Duration) -> f64 {
     d.as_secs() as f64 + f64::from(d.subsec_nanos()) / 1_000_000_000.0
 }

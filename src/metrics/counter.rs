@@ -100,7 +100,7 @@ impl Counter {
     {
         let start = Instant::now();
         let result = f();
-        let elapsed = timestamp::duration_to_unixtime_seconds(start.elapsed());
+        let elapsed = timestamp::duration_to_seconds(start.elapsed());
         self.add(elapsed).expect("Never fails");
         result
     }
