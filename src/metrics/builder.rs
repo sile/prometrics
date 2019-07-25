@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use {default_registry, Registry};
-use metrics::{CounterBuilder, GaugeBuilder, HistogramBuilder, SummaryBuilder};
+use metrics::{CounterBuilder, ObservedCounterBuilder, GaugeBuilder, HistogramBuilder, SummaryBuilder};
 
 /// Common builder for various metrics.
 #[derive(Debug, Clone)]
@@ -72,6 +72,24 @@ impl MetricBuilder {
     /// Makes a `CounterBuilder` that inherited the setting of this builder.
     pub fn counter(&self, name: &str) -> CounterBuilder {
         let mut builder = CounterBuilder::new(name);
+        if let Some(ref namespace) = self.namespace {
+            builder.namespace(namespace);
+        }
+        if let Some(ref subsystem) = self.subsystem {
+            builder.subsystem(subsystem);
+        }
+        for &(ref k, ref v) in &self.labels {
+            builder.label(k, v);
+        }
+        for r in &self.registries {
+            builder.registry(r.clone());
+        }
+        builder
+    }
+
+    /// Makes a `ObservedCounterBuilder` that inherited the setting of this builder.
+    pub fn observed_counter(&self, name: &str) -> ObservedCounterBuilder {
+        let mut builder = ObservedCounterBuilder::new(name);
         if let Some(ref namespace) = self.namespace {
             builder.namespace(namespace);
         }
