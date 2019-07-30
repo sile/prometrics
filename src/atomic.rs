@@ -1,121 +1,123 @@
-pub use self::atomic64::Atomic64;
+// so the API is "complete" even if not all functions are used
+#![allow(dead_code)]
 
-pub type AtomicF64 = atomic64::Atomic64<f64>;
-pub type AtomicU64 = atomic64::Atomic64<u64>;
-pub type AtomicI64 = atomic64::Atomic64<i64>;
+use std::sync::atomic::{self, Ordering::Relaxed};
 
-#[cfg(target_pointer_width = "64")]
-mod atomic64 {
-    use std::marker::PhantomData;
-    use std::mem;
-    use std::sync::atomic::{AtomicUsize, Ordering};
+#[derive(Debug)]
+pub struct AtomicU64(atomic::AtomicU64);
 
-    #[derive(Debug)]
-    pub struct Atomic64<T> {
-        value: AtomicUsize,
-        _phantom: PhantomData<T>,
+impl AtomicU64 {
+    pub fn new(v: u64) -> Self {
+        AtomicU64(v.into())
     }
-    impl<T: Default + Copy> Atomic64<T> {
-        pub fn new(value: T) -> Self {
-            assert_eq!(mem::size_of::<T>(), mem::size_of::<usize>());
-            Atomic64 {
-                value: AtomicUsize::new(unsafe { mem::transmute_copy(&value) }),
-                _phantom: PhantomData,
-            }
-        }
 
-        #[inline]
-        pub fn get(&self) -> T {
-            let value = self.value.load(Ordering::SeqCst);
-            unsafe { mem::transmute_copy(&value) }
-        }
+    pub fn get(&self) -> u64 {
+        self.0.load(Relaxed)
+    }
 
-        #[inline]
-        pub fn set(&self, value: T) {
-            self.value
-                .store(unsafe { mem::transmute_copy(&value) }, Ordering::SeqCst);
-        }
+    pub fn inc(&self) {
+        self.add(1);
+    }
 
-        #[inline]
-        pub fn update<F>(&self, f: F)
-        where
-            F: Fn(T) -> T,
-        {
-            loop {
-                let old = self.get();
-                let new = f(old);
-                unsafe {
-                    let old = mem::transmute_copy(&old);
-                    let new = mem::transmute_copy(&new);
-                    if self.value.compare_and_swap(old, new, Ordering::SeqCst) == old {
-                        break;
-                    }
-                }
+    pub fn add(&self, v: u64) {
+        self.0.fetch_add(v, Relaxed);
+    }
+
+    pub fn update<F>(&self, f: F)
+    where
+        F: Fn(u64) -> u64
+    {
+        let mut old = self.0.load(Relaxed);
+        loop {
+            let new = f(old);
+            match self.0.compare_exchange_weak(old, new, Relaxed, Relaxed) {
+                Ok(_) => break,
+                Err(v) => old = v, // try again
             }
         }
     }
-    impl Atomic64<u64> {
-        #[inline]
-        pub fn inc(&self) {
-            self.value.fetch_add(1, Ordering::SeqCst);
-        }
 
-        #[inline]
-        pub fn add(&self, count: u64) {
-            self.value.fetch_add(count as usize, Ordering::SeqCst);
-        }
+    pub fn set(&self, v: u64) {
+        self.0.store(v, Relaxed);
     }
 }
-#[cfg(not(target_pointer_width = "64"))]
-mod atomic64 {
-    use std::sync::Mutex;
 
-    #[derive(Debug)]
-    pub struct Atomic64<T>(Mutex<T>);
-    impl<T: Default + Copy> Atomic64<T> {
-        pub fn new(value: T) -> Self {
-            Atomic64(Mutex::new(value))
-        }
+#[derive(Debug)]
+pub struct AtomicI64(atomic::AtomicI64);
 
-        #[inline]
-        pub fn get(&self) -> T {
-            if let Some(v) = self.0.lock().ok() {
-                *v
-            } else {
-                T::default()
-            }
-        }
+impl AtomicI64 {
+    pub fn new(v: i64) -> Self {
+        AtomicI64(v.into())
+    }
 
-        #[inline]
-        pub fn set(&self, value: T) {
-            if let Some(mut v) = self.0.lock().ok() {
-                *v = value;
-            }
-        }
+    pub fn get(&self) -> i64 {
+        self.0.load(Relaxed)
+    }
 
-        #[inline]
-        pub fn update<F>(&self, f: F)
-        where
-            F: Fn(T) -> T,
-        {
-            loop {
-                if let Some(mut v) = self.0.lock().ok() {
-                    *v = f(*v);
-                    break;
-                }
+    pub fn inc(&self) {
+        self.add(1);
+    }
+
+    pub fn add(&self, v: i64) {
+        self.0.fetch_add(v, Relaxed);
+    }
+
+    pub fn update<F>(&self, f: F)
+    where
+        F: Fn(i64) -> i64
+    {
+        let mut old = self.0.load(Relaxed);
+        loop {
+            let new = f(old);
+            match self.0.compare_exchange_weak(old, new, Relaxed, Relaxed) {
+                Ok(_) => break,
+                Err(v) => old = v, // try again
             }
         }
     }
-    impl Atomic64<u64> {
-        #[inline]
-        pub fn inc(&self) {
-            self.value.update(|v| *v + 1);
-        }
 
-        #[inline]
-        pub fn add(&self, count: u64) {
-            self.value.update(|v| *v + count);
+    pub fn set(&self, v: i64) {
+        self.0.store(v, Relaxed);
+    }
+}
+
+/// Add (and inc) is not a dedicated atomic instruction, use busy-loop
+#[derive(Debug)]
+pub struct AtomicF64(atomic::AtomicU64);
+
+impl AtomicF64 {
+    pub fn new(v: f64) -> Self {
+        AtomicF64(v.to_bits().into())
+    }
+
+    pub fn get(&self) -> f64 {
+        f64::from_bits(self.0.load(Relaxed))
+    }
+
+    pub fn inc(&self) {
+        self.add(1.0);
+    }
+
+    pub fn add(&self, v: f64) {
+        self.update(|old| old + v);
+    }
+
+    pub fn update<F>(&self, f: F)
+    where
+        F: Fn(f64) -> f64
+    {
+        let mut old = self.0.load(Relaxed);
+        loop {
+            let new = f(f64::from_bits(old)).to_bits();
+            match self.0.compare_exchange_weak(old, new, Relaxed, Relaxed) {
+                Ok(_) => break,
+                Err(v) => old = v, // try again
+            }
         }
+    }
+
+    pub fn set(&self, v: f64) {
+        self.0.store(v.to_bits(), Relaxed);
     }
 }
 
