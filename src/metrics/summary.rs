@@ -55,7 +55,7 @@ impl Summary {
     }
 
     /// Returns the mutable timestamp of this summary.
-    pub fn timestamp_mut(&mut self) -> TimestampMut {
+    pub fn timestamp_mut(&self) -> TimestampMut {
         TimestampMut::new(&self.0.timestamp)
     }
 
