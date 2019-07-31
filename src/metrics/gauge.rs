@@ -68,7 +68,7 @@ impl Gauge {
     /// Adds `count` to this gauge.
     #[inline]
     pub fn add(&self, count: f64) {
-        self.0.value.update(|v| v + count);
+        self.0.value.add(count);
     }
 
     /// Decrements this gauge.

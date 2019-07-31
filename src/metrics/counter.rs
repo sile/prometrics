@@ -269,7 +269,7 @@ impl Value {
         if floor == ceil {
             self.u64.add(floor);
         } else {
-            self.f64.update(|v| v + count);
+            self.f64.add(count);
         }
     }
 

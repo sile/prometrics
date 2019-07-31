@@ -88,7 +88,7 @@ impl Histogram {
             .binary_search_by(|b| b.upper_bound().partial_cmp(&value).expect("Never fails"))
             .unwrap_or_else(|i| i);
         self.0.buckets.get(i).map(|b| b.increment());
-        self.0.sum.update(|v| v + value);
+        self.0.sum.add(value);
     }
 
     /// Measures the exeuction time of `f` and observes its duration in seconds.

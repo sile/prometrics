@@ -103,7 +103,7 @@ impl Summary {
             samples.push_back((now, value));
         });
         self.0.count.inc();
-        self.0.sum.update(|v| v + value);
+        self.0.sum.add(value);
     }
 
     /// Measures the exeuction time of `f` and observes its duration in seconds.
