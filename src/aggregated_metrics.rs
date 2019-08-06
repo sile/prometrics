@@ -4,14 +4,38 @@ use std::fmt;
 use bucket::AggregatedCumulativeBuckets;
 use label::Labels;
 use metric::{MetricName, MetricValue};
-use metrics::{Counter, Gauge, Histogram, Summary};
+use metrics::{Counter, Gauge, Histogram, Summary, ObservedCounter};
 use quantile::Quantile;
 use timestamp::Timestamp;
+
+#[derive(Debug, Clone)]
+enum InnerCounter {
+    Counter(Counter),
+    ObservedCounter(ObservedCounter),
+}
+
+impl InnerCounter {
+    /// Returns the name of this metric.
+    pub fn metric_name(&self) -> &MetricName {
+        match self {
+            InnerCounter::Counter(m) => m.metric_name(),
+            InnerCounter::ObservedCounter(m) => m.metric_name(),
+        }
+    }
+
+    /// Returns the labels of this metric.
+    pub fn labels(&self) -> &Labels {
+        match self {
+            InnerCounter::Counter(m) => m.labels(),
+            InnerCounter::ObservedCounter(m) => m.labels(),
+        }
+    }
+}
 
 /// A metric for aggregating counters that have the same name and labels.
 #[derive(Debug, Clone)]
 pub struct AggregatedCounter {
-    inner: Counter,
+    inner: InnerCounter,
     timestamp: Option<i64>,
     value: f64,
 }
@@ -40,7 +64,17 @@ impl AggregatedCounter {
         let value = counter.value();
         let timestamp = counter.timestamp().get();
         AggregatedCounter {
-            inner: counter,
+            inner: InnerCounter::Counter(counter),
+            timestamp,
+            value,
+        }
+    }
+
+    pub(crate) fn new_observed(counter: ObservedCounter) -> Self {
+        let value = counter.value();
+        let timestamp = counter.timestamp().get();
+        AggregatedCounter {
+            inner: InnerCounter::ObservedCounter(counter),
             timestamp,
             value,
         }
