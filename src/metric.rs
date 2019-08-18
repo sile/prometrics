@@ -128,12 +128,12 @@ impl MetricName {
         // REGEX: [a-zA-Z_:][a-zA-Z0-9_:]*
         track_assert!(!name.is_empty(), ErrorKind::InvalidInput);
         match name.as_bytes()[0] as char {
-            'a'...'z' | 'A'...'Z' | '_' | ':' => {}
+            'a'..='z' | 'A'..='Z' | '_' | ':' => {}
             _ => track_panic!(ErrorKind::InvalidInput),
         }
         for c in name.chars().skip(1) {
             match c {
-                'a'...'z' | 'A'...'Z' | '0'...'9' | '_' | ':' => {}
+                'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | ':' => {}
                 _ => track_panic!(ErrorKind::InvalidInput),
             }
         }

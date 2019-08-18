@@ -50,7 +50,7 @@ impl Registry {
     }
 }
 
-struct Collector(Box<FnMut(&mut Vec<Metric>) -> bool + Send + 'static>);
+struct Collector(Box<dyn FnMut(&mut Vec<Metric>) -> bool + Send + 'static>);
 impl Collector {
     fn collect(&mut self, metrics: &mut Vec<Metric>) -> bool {
         (self.0)(metrics)
