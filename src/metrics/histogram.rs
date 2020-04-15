@@ -244,6 +244,12 @@ impl HistogramBuilder {
         self
     }
 
+    /// Adds a sequence of buckets.
+    pub fn buckets<I: IntoIterator<Item = f64>>(&mut self, upper_bounds: I) -> &mut Self {
+        self.bucket_upper_bounds.append(&mut upper_bounds.into_iter().collect::<Vec<_>>());
+        self
+    }
+
     /// Builds a histogram.
     ///
     /// # Errors
@@ -358,6 +364,28 @@ foo_bucket{le="40"} 3
 foo_bucket{le="+Inf"} 4
 foo_sum 79.1
 foo_count 4"#
+        );
+    }
+
+    #[test]
+    fn buckets_works() {
+        let histogram =
+            track_try_unwrap!(HistogramBuilder::new("bar").bucket(1.0).buckets(vec![2.0, 3.0]).finish());
+        assert_eq!(histogram.metric_name().to_string(), "bar");
+
+        histogram.observe(2.0);
+        histogram.observe(5.0);
+        assert_eq!(
+            histogram
+                .cumulative_buckets()
+                .map(|b| (b.upper_bound(), b.cumulative_count()))
+                .collect::<Vec<_>>(),
+            [
+                (1.0, 0),
+                (2.0, 1),
+                (3.0, 1),
+                (INFINITY, 2),
+            ]
         );
     }
 }
