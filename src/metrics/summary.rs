@@ -55,7 +55,7 @@ impl Summary {
     }
 
     /// Returns the mutable timestamp of this summary.
-    pub fn timestamp_mut(&mut self) -> TimestampMut {
+    pub fn timestamp_mut(&self) -> TimestampMut {
         TimestampMut::new(&self.0.timestamp)
     }
 
@@ -103,7 +103,7 @@ impl Summary {
             samples.push_back((now, value));
         });
         self.0.count.inc();
-        self.0.sum.update(|v| v + value);
+        self.0.sum.add(value);
     }
 
     /// Measures the exeuction time of `f` and observes its duration in seconds.
