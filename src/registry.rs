@@ -1,10 +1,10 @@
 use std::cmp;
 use std::fmt;
-use std::sync::Mutex;
 use std::sync::mpsc;
+use std::sync::Mutex;
 
-use Collect;
 use metric::{Metric, MetricFamilies, MetricFamily};
+use Collect;
 
 lazy_static! {
     static ref DEFAULT_GATHERER: Mutex<Gatherer> = Mutex::new(Gatherer::new());

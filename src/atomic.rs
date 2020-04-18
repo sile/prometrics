@@ -25,7 +25,7 @@ impl AtomicU64 {
 
     pub fn update<F>(&self, f: F)
     where
-        F: Fn(u64) -> u64
+        F: Fn(u64) -> u64,
     {
         let mut old = self.0.load(Relaxed);
         loop {
@@ -64,7 +64,7 @@ impl AtomicI64 {
 
     pub fn update<F>(&self, f: F)
     where
-        F: Fn(i64) -> i64
+        F: Fn(i64) -> i64,
     {
         let mut old = self.0.load(Relaxed);
         loop {
@@ -104,7 +104,7 @@ impl AtomicF64 {
 
     pub fn update<F>(&self, f: F)
     where
-        F: Fn(f64) -> f64
+        F: Fn(f64) -> f64,
     {
         let mut old = self.0.load(Relaxed);
         loop {

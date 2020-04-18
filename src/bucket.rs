@@ -5,9 +5,9 @@ use std;
 use std::iter::Peekable;
 use std::slice;
 
-use {ErrorKind, Result};
 use atomic::AtomicU64;
 use metrics::Histogram;
+use {ErrorKind, Result};
 
 /// A bucket in which a [histogram][histogram] counts samples.
 ///

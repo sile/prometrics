@@ -4,13 +4,13 @@ use std::iter;
 use std::sync::{Arc, Weak};
 use std::time::Instant;
 
-use {Collect, ErrorKind, Registry, Result};
-use default_registry;
 use atomic::{AtomicF64, AtomicU64};
 use bucket::{Bucket, CumulativeBuckets};
+use default_registry;
 use label::{Label, Labels, LabelsMut};
 use metric::{Metric, MetricName, MetricValue};
 use timestamp::{self, Timestamp, TimestampMut};
+use {Collect, ErrorKind, Registry, Result};
 
 /// `Histogram` samples observations (usually things like request durations or response sizes) and
 /// counts them in configurable buckets.
@@ -83,7 +83,8 @@ impl Histogram {
     #[inline]
     pub fn observe(&self, value: f64) {
         assert!(!value.is_nan());
-        let i = self.0
+        let i = self
+            .0
             .buckets
             .binary_search_by(|b| b.upper_bound().partial_cmp(&value).expect("Never fails"))
             .unwrap_or_else(|i| i);
@@ -246,7 +247,8 @@ impl HistogramBuilder {
 
     /// Adds a sequence of buckets.
     pub fn buckets<I: IntoIterator<Item = f64>>(&mut self, upper_bounds: I) -> &mut Self {
-        self.bucket_upper_bounds.append(&mut upper_bounds.into_iter().collect::<Vec<_>>());
+        self.bucket_upper_bounds
+            .append(&mut upper_bounds.into_iter().collect::<Vec<_>>());
         self
     }
 
@@ -262,21 +264,19 @@ impl HistogramBuilder {
         let namespace = self.namespace.as_ref().map(AsRef::as_ref);
         let subsystem = self.subsystem.as_ref().map(AsRef::as_ref);
         let bucket_name = track!(MetricName::new(namespace, subsystem, &self.name))?;
-        let labels = track!(
-            self.labels
-                .iter()
-                .map(|&(ref name, ref value)| {
-                    track_assert_ne!(name, "le", ErrorKind::InvalidInput);
-                    track!(Label::new(name, value))
-                })
-                .collect::<Result<_>>()
-        )?;
-        let mut buckets = track!(
-            self.bucket_upper_bounds
-                .iter()
-                .map(|upper_bound| track!(Bucket::new(*upper_bound)))
-                .collect::<Result<Vec<_>>>()
-        )?;
+        let labels = track!(self
+            .labels
+            .iter()
+            .map(|&(ref name, ref value)| {
+                track_assert_ne!(name, "le", ErrorKind::InvalidInput);
+                track!(Label::new(name, value))
+            })
+            .collect::<Result<_>>())?;
+        let mut buckets = track!(self
+            .bucket_upper_bounds
+            .iter()
+            .map(|upper_bound| track!(Bucket::new(*upper_bound)))
+            .collect::<Result<Vec<_>>>())?;
         buckets.sort_by(|a, b| {
             a.upper_bound()
                 .partial_cmp(&b.upper_bound())
@@ -324,8 +324,8 @@ struct Inner {
 
 #[cfg(test)]
 mod test {
-    use std::f64::INFINITY;
     use super::*;
+    use std::f64::INFINITY;
 
     #[test]
     fn it_works() {
@@ -369,8 +369,10 @@ foo_count 4"#
 
     #[test]
     fn buckets_works() {
-        let histogram =
-            track_try_unwrap!(HistogramBuilder::new("bar").bucket(1.0).buckets(vec![2.0, 3.0]).finish());
+        let histogram = track_try_unwrap!(HistogramBuilder::new("bar")
+            .bucket(1.0)
+            .buckets(vec![2.0, 3.0])
+            .finish());
         assert_eq!(histogram.metric_name().to_string(), "bar");
 
         histogram.observe(2.0);
@@ -380,12 +382,7 @@ foo_count 4"#
                 .cumulative_buckets()
                 .map(|b| (b.upper_bound(), b.cumulative_count()))
                 .collect::<Vec<_>>(),
-            [
-                (1.0, 0),
-                (2.0, 1),
-                (3.0, 1),
-                (INFINITY, 2),
-            ]
+            [(1.0, 0), (2.0, 1), (3.0, 1), (INFINITY, 2),]
         );
     }
 }

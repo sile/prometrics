@@ -3,12 +3,12 @@ use std::iter;
 use std::sync::{Arc, Weak};
 use std::time::Instant;
 
-use {Collect, ErrorKind, Registry, Result};
-use default_registry;
 use atomic::{AtomicF64, AtomicU64};
+use default_registry;
 use label::{Label, Labels, LabelsMut};
 use metric::{Metric, MetricName, MetricValue};
 use timestamp::{self, Timestamp, TimestampMut};
+use {Collect, ErrorKind, Registry, Result};
 
 /// `Counter` is a cumulative metric that represents a single numerical value that only ever goes up.
 ///
@@ -197,12 +197,11 @@ impl CounterBuilder {
             self.subsystem.as_ref().map(AsRef::as_ref),
             &self.name,
         ))?;
-        let labels = track!(
-            self.labels
-                .iter()
-                .map(|&(ref name, ref value)| track!(Label::new(name, value)))
-                .collect::<Result<_>>()
-        )?;
+        let labels = track!(self
+            .labels
+            .iter()
+            .map(|&(ref name, ref value)| track!(Label::new(name, value)))
+            .collect::<Result<_>>())?;
         let inner = Inner {
             name,
             labels: Labels::new(labels),
@@ -285,12 +284,10 @@ mod test {
 
     #[test]
     fn it_works() {
-        let mut counter = track_try_unwrap!(
-            CounterBuilder::new("foo_total")
-                .namespace("test")
-                .subsystem("counter")
-                .finish()
-        );
+        let mut counter = track_try_unwrap!(CounterBuilder::new("foo_total")
+            .namespace("test")
+            .subsystem("counter")
+            .finish());
         assert_eq!(counter.metric_name().to_string(), "test_counter_foo_total");
         assert_eq!(counter.value(), 0.0);
 

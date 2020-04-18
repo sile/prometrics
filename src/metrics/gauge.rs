@@ -3,12 +3,12 @@ use std::iter;
 use std::sync::{Arc, Weak};
 use std::time::Instant;
 
-use {Collect, Registry, Result};
-use default_registry;
 use atomic::AtomicF64;
+use default_registry;
 use label::{Label, Labels, LabelsMut};
 use metric::{Metric, MetricName, MetricValue};
 use timestamp::{self, Timestamp, TimestampMut};
+use {Collect, Registry, Result};
 
 /// `Gauge` is a metric that represents a single numerical value that can arbitrarily go up and down.
 ///
@@ -235,12 +235,11 @@ impl GaugeBuilder {
             self.subsystem.as_ref().map(AsRef::as_ref),
             &self.name,
         ))?;
-        let labels = track!(
-            self.labels
-                .iter()
-                .map(|&(ref name, ref value)| track!(Label::new(name, value)))
-                .collect::<Result<_>>()
-        )?;
+        let labels = track!(self
+            .labels
+            .iter()
+            .map(|&(ref name, ref value)| track!(Label::new(name, value)))
+            .collect::<Result<_>>())?;
         let inner = Inner {
             name,
             labels: Labels::new(labels),

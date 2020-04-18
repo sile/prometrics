@@ -8,11 +8,9 @@ use trackable::error::Failure;
 fn main() {
     prometrics::default_registry().register(ProcessMetricsCollector::new());
 
-    let mut gatherer = track_try_unwrap!(
-        prometrics::default_gatherer()
-            .lock()
-            .map_err(|e| Failure::from_error(e.to_string()))
-    );
+    let mut gatherer = track_try_unwrap!(prometrics::default_gatherer()
+        .lock()
+        .map_err(|e| Failure::from_error(e.to_string())));
     for metric in gatherer.gather() {
         println!("{}", metric);
     }

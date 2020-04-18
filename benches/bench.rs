@@ -2,8 +2,8 @@
 extern crate prometrics;
 extern crate test;
 
-use std::time::Duration;
 use prometrics::metrics::{Counter, Gauge, HistogramBuilder, Summary};
+use std::time::Duration;
 
 #[bench]
 fn counter_increment(b: &mut test::Bencher) {

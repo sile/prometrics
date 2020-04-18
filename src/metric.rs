@@ -2,12 +2,13 @@
 use std;
 use std::fmt;
 
-pub use aggregated_metrics::{AggregatedCounter, AggregatedGauge, AggregatedHistogram,
-                             AggregatedSummary};
+pub use aggregated_metrics::{
+    AggregatedCounter, AggregatedGauge, AggregatedHistogram, AggregatedSummary,
+};
 
-use {ErrorKind, Result};
 use label::Labels;
 use metrics::{Counter, Gauge, Histogram, Summary};
+use {ErrorKind, Result};
 
 /// Metric.
 ///
@@ -355,18 +356,26 @@ pub enum Metrics {
 impl fmt::Display for Metrics {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Metrics::Counter(ref v) => for m in v.iter() {
-                writeln!(f, "{}", m)?;
-            },
-            Metrics::Gauge(ref v) => for m in v.iter() {
-                writeln!(f, "{}", m)?;
-            },
-            Metrics::Summary(ref v) => for m in v.iter() {
-                writeln!(f, "{}", m)?;
-            },
-            Metrics::Histogram(ref v) => for m in v.iter() {
-                writeln!(f, "{}", m)?;
-            },
+            Metrics::Counter(ref v) => {
+                for m in v.iter() {
+                    writeln!(f, "{}", m)?;
+                }
+            }
+            Metrics::Gauge(ref v) => {
+                for m in v.iter() {
+                    writeln!(f, "{}", m)?;
+                }
+            }
+            Metrics::Summary(ref v) => {
+                for m in v.iter() {
+                    writeln!(f, "{}", m)?;
+                }
+            }
+            Metrics::Histogram(ref v) => {
+                for m in v.iter() {
+                    writeln!(f, "{}", m)?;
+                }
+            }
         }
         Ok(())
     }

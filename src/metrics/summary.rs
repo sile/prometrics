@@ -5,13 +5,13 @@ use std::iter;
 use std::sync::{Arc, Mutex, Weak};
 use std::time::{Duration, Instant, SystemTime};
 
-use {Collect, ErrorKind, Registry, Result};
-use default_registry;
 use atomic::{AtomicF64, AtomicU64};
+use default_registry;
 use label::{Label, Labels, LabelsMut};
 use metric::{Metric, MetricName, MetricValue};
 use quantile::Quantile;
 use timestamp::{self, Timestamp, TimestampMut};
+use {Collect, ErrorKind, Registry, Result};
 
 /// `Summary` samples observations (usually things like request durations and response sizes).
 ///
@@ -279,21 +279,19 @@ impl SummaryBuilder {
         let namespace = self.namespace.as_ref().map(AsRef::as_ref);
         let subsystem = self.subsystem.as_ref().map(AsRef::as_ref);
         let quantile_name = track!(MetricName::new(namespace, subsystem, &self.name))?;
-        let labels = track!(
-            self.labels
-                .iter()
-                .map(|&(ref name, ref value)| {
-                    track_assert_ne!(name, "quantile", ErrorKind::InvalidInput);
-                    track!(Label::new(name, value))
-                })
-                .collect::<Result<_>>()
-        )?;
-        let mut quantiles = track!(
-            self.quantiles
-                .iter()
-                .map(|quantile| track!(Quantile::new(*quantile)))
-                .collect::<Result<Vec<_>>>()
-        )?;
+        let labels = track!(self
+            .labels
+            .iter()
+            .map(|&(ref name, ref value)| {
+                track_assert_ne!(name, "quantile", ErrorKind::InvalidInput);
+                track!(Label::new(name, value))
+            })
+            .collect::<Result<_>>())?;
+        let mut quantiles = track!(self
+            .quantiles
+            .iter()
+            .map(|quantile| track!(Quantile::new(*quantile)))
+            .collect::<Result<Vec<_>>>())?;
         quantiles.sort_by(|a, b| a.as_f64().partial_cmp(&b.as_f64()).expect("Never fails"));
         let inner = Inner {
             quantile_name,
@@ -347,13 +345,11 @@ mod test {
 
     #[test]
     fn it_works() {
-        let summary = track_try_unwrap!(
-            SummaryBuilder::new("foo", Duration::from_secs(10))
-                .quantile(0.25)
-                .quantile(0.5)
-                .quantile(0.75)
-                .finish()
-        );
+        let summary = track_try_unwrap!(SummaryBuilder::new("foo", Duration::from_secs(10))
+            .quantile(0.25)
+            .quantile(0.5)
+            .quantile(0.75)
+            .finish());
         assert_eq!(summary.metric_name().to_string(), "foo");
 
         summary.observe(7.0);

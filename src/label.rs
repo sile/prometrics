@@ -4,10 +4,10 @@
 //!
 //! - [Data model](https://prometheus.io/docs/concepts/data_model/)
 //! - [Metric and label naming](https://prometheus.io/docs/practices/naming/)
+use atomic_immut::AtomicImmut;
 use std;
 use std::fmt;
 use std::ops::Deref;
-use atomic_immut::AtomicImmut;
 
 use {ErrorKind, Result};
 

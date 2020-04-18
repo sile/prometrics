@@ -292,7 +292,8 @@ impl AggregatedSummary {
         }
         let count = aggregated_samples.len();
 
-        let mut quantiles = self.inners
+        let mut quantiles = self
+            .inners
             .iter()
             .flat_map(|s| s.quantiles_without_values().iter())
             .cloned()

@@ -72,9 +72,9 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[cfg(test)]
 mod test {
+    use super::*;
     use metrics::{CounterBuilder, GaugeBuilder, MetricBuilder};
     use registry::Gatherer;
-    use super::*;
 
     #[test]
     fn it_works() {

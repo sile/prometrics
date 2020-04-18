@@ -1,16 +1,16 @@
-use std::time::SystemTime;
-#[cfg(target_os = "linux")]
-use std::time::UNIX_EPOCH;
-use std::vec;
 #[cfg(target_os = "linux")]
 use libc;
 #[cfg(target_os = "linux")]
 use procinfo;
+use std::time::SystemTime;
+#[cfg(target_os = "linux")]
+use std::time::UNIX_EPOCH;
+use std::vec;
 
-use Collect;
 use metric::Metric;
 #[cfg(target_os = "linux")]
 use metrics::{CounterBuilder, GaugeBuilder};
+use Collect;
 
 #[cfg(target_os = "linux")]
 lazy_static! {

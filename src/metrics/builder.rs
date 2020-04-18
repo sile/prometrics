@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use {default_registry, Registry};
 use metrics::{CounterBuilder, GaugeBuilder, HistogramBuilder, SummaryBuilder};
+use {default_registry, Registry};
 
 /// Common builder for various metrics.
 #[derive(Debug, Clone)]
